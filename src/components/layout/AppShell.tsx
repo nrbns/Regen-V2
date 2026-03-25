@@ -1,656 +1,409 @@
 import React, { useState, useEffect } from 'react';
-import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Home,
-  Settings,
-  Bot,
-  Brain,
-  Search,
-  Folder,
-  Globe,
-  ArrowLeft,
-  ArrowRight,
-  RefreshCw,
+  Bell,
   Download,
-  Camera,
+  Bookmark,
+  Settings,
+  MoreVertical,
   Plus,
   X,
-  Sparkles,
-  Rocket,
-  FileText,
-  Square,
-  CheckCircle
+  ChevronLeft,
+  ChevronRight,
+  RotateCw,
+  Wifi,
+  Battery,
+  Globe,
 } from 'lucide-react';
-import { ThemeToggle } from '../ui/ThemeToggle';
+import { ToastContainer } from '../ui/Toast';
 import { useCommandController } from '../../hooks/useCommandController';
-import { ToastContainer, showToast } from '../ui/Toast';
-import { AIStatusDot } from '../ui/AIStatusDot';
-import { Toggle } from '../ui/Toggle';
-import RegenCore from '../../core/regen-core/RegenCore';
-import { 
-  useTabRedundancyDetection, 
-  useSearchLoopDetection,
-  useLongScrollDetection,
-  useIdleDetection,
-  useErrorDetection,
-  useRegenCoreActions 
-} from '../../core/regen-core/regenCore.hooks';
-import { useScrollDetection } from '../../lib/events/useScrollDetection';
-import Avatar from '../Avatar/Avatar';
-import CommandInput from '../Avatar/CommandInput';
-import { AvatarStatusIndicator } from '../Avatar/AvatarStatusIndicator';
-import { useAvatar } from '../../core/avatar/avatarStore';
-import { useActivityDetection } from '../../lib/events/useActivityDetection';
-import { workspaceStore } from '../../lib/workspace/WorkspaceStore';
-import { useTabsStore } from '../../state/tabsStore';
 
 interface Tab {
   id: string;
   title: string;
   url: string;
   isActive: boolean;
+  favicon?: string;
 }
+
+type BrowserMode = 'general' | 'research';
+
+const SIDE_MENU_ITEMS = [
+  { label: 'New Tab',                 shortcut: 'Ctrl+T'       },
+  { label: 'New Window',              shortcut: 'Ctrl+N'       },
+  { label: 'New Incognito Window',    shortcut: 'Ctrl+Shift+N' },
+  { label: 'History',                 shortcut: null            },
+  { label: 'Downloads',               shortcut: null            },
+  { label: 'Tab Groups',              shortcut: null            },
+  { label: 'Extensions',             shortcut: null            },
+  { label: 'Delete Browsing History', shortcut: null            },
+  { label: 'Zoom',                    shortcut: null, isZoom: true },
+  { label: 'Print',                   shortcut: 'Ctrl+P'       },
+  { label: 'Regen Lens',              shortcut: null            },
+  { label: 'Translate',               shortcut: null            },
+  { label: 'Find & Edit',             shortcut: null            },
+  { label: 'Cast, Save, & Share',     shortcut: null            },
+  { label: 'Help',                    shortcut: null            },
+  { label: 'Settings',                shortcut: null            },
+  { label: 'Exit',                    shortcut: null            },
+];
+
+const DIVIDERS = ['New Incognito Window', 'Delete Browsing History', 'Cast, Save, & Share'];
 
 export function AppShell({ children }: { children: React.ReactNode }): JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
-  const { status, lastAction, isExecuting, executeCommand } = useCommandController();
-  const [commandInput, setCommandInput] = useState('');
-  const [tabs, setTabs] = useState<Tab[]>([
-    { id: '1', title: 'Regen Browser', url: '/', isActive: true },
-    { id: '2', title: 'Getting Started | Regen', url: '/getting-started', isActive: false },
-    { id: '3', title: 'Observations | Regen', url: '/task-runner', isActive: false },
+  const { executeCommand } = useCommandController();
+
+  const [mode,        setMode]        = useState<BrowserMode>('general');
+  const [showMenu,    setShowMenu]    = useState(false);
+  const [urlBarValue, setUrlBarValue] = useState('');
+  const [zoom,        setZoom]        = useState(100);
+  const [tabs,        setTabs]        = useState<Tab[]>([
+    { id: '1', title: 'REGEN Home', url: '/', isActive: true, favicon: '🏠' },
   ]);
-  const [localAssistanceEnabled, setLocalAssistanceEnabled] = useState(true);
-  const [workspaceCount, setWorkspaceCount] = useState(0);
-  
-  // Avatar state management
-  const { state: avatarState } = useAvatar();
-  const [showCommandInput, setShowCommandInput] = useState(false);
 
-  // Track workspace count for activity indicator
   useEffect(() => {
-    const updateWorkspaceCount = () => {
-      setWorkspaceCount(workspaceStore.getCount());
-    };
-    updateWorkspaceCount();
-    const interval = setInterval(updateWorkspaceCount, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    setMode(location.pathname === '/research' ? 'research' : 'general');
+  }, [location.pathname]);
 
-  // Regen Core hooks - detect context and handle actions
-  useTabRedundancyDetection();
-  useSearchLoopDetection();
-  useLongScrollDetection();
-  useIdleDetection();
-  useErrorDetection();
-  useRegenCoreActions();
-
-  // Real-time event detection hooks - emit events to EventBus
-  useScrollDetection();
-  useActivityDetection();
-
-  // Show command input when avatar is listening
-  useEffect(() => {
-    setShowCommandInput(avatarState === "listening");
-  }, [avatarState]);
-  
-  // PERFORMANCE: Passive reactions (zero-cost liveliness)
-  useEffect(() => {
-    import('../../lib/events/passiveReactions').then(({ 
-      useMouseMovementTracking,
-      useTypingPauseDetection,
-      useScrollDirectionTracking,
-      useTabSwitchTracking,
-      useExtendedIdleTracking
-    }) => {
-      // These hooks are dynamically imported to avoid blocking initial render
-      // They run in the background and provide "alive" feeling without AI
-    });
-  }, []);
-
-  // FIX: Listen for navigation confirmation events from backend
-  useEffect(() => {
-    const handleNavConfirmation = (e: CustomEvent<{ url: string; tabId?: string; success: boolean }>) => {
-      const { url, tabId, success } = e.detail;
-      if (!success) return;
-
-      // Backend confirmed navigation - update tab through tabsStore
-      import('../../state/tabsStore').then(({ useTabsStore }) => {
-        const activeTabId = tabId || tabs.find(t => t.isActive)?.id;
-        if (activeTabId) {
-          useTabsStore.getState().navigateTab(activeTabId, url);
-        }
-      });
-    };
-
-    window.addEventListener('regen:navigate:confirmed', handleNavConfirmation as EventListener);
-    return () => {
-      window.removeEventListener('regen:navigate:confirmed', handleNavConfirmation as EventListener);
-    };
-  }, [tabs]);
-
-  const handleRunCommand = async () => {
-    if (!commandInput.trim() || isExecuting) return;
-
-    const result = await executeCommand(commandInput, {
-      currentUrl: window.location.href,
-      selectedText: window.getSelection()?.toString() || '',
-      activeTab: tabs.find(t => t.isActive)?.id,
-    });
-
-    if (result.success) {
-      setCommandInput('');
-      
-      // FIX: Handle navigation result (backend-owned navigation)
-      if (result.data?.url) {
-        const url = result.data.url;
-        
-        // Check if it's a web URL (http/https) or internal route
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-          // Web navigation - CommandController already handled navigation request
-          // Backend will emit 'regen:navigate:confirmed' event, which we listen to above
-          // No direct tab update here - wait for confirmation
-          showToast('Navigation initiated...', 'info');
-        } else if (url.startsWith('/')) {
-          // Internal route - use React Router (this is fine, it's app navigation not web navigation)
-          navigate(url);
-        }
-      }
-    } else {
-      showToast(result.message || 'Command failed', 'error');
-    }
+  const handleModeSwitch = (m: BrowserMode) => {
+    setMode(m);
+    navigate(m === 'research' ? '/research' : '/');
   };
-
-  const handleCommandKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleRunCommand();
-    }
-  };
-
-  // Listen for pre-fill command events
-  useEffect(() => {
-    const handlePrefill = (e: CustomEvent<{ command: string }>) => {
-      setCommandInput(e.detail.command);
-    };
-
-    window.addEventListener('regen:prefill-command', handlePrefill as EventListener);
-    return () => window.removeEventListener('regen:prefill-command', handlePrefill as EventListener);
-  }, []);
 
   const handleNewTab = () => {
-    const newTab: Tab = {
-      id: Date.now().toString(),
-      title: 'New Tab',
-      url: '/',
-      isActive: true,
-    };
-    setTabs(prev => prev.map(t => ({ ...t, isActive: false })).concat(newTab));
-    showToast('New tab created', 'success');
+    const t: Tab = { id: Date.now().toString(), title: 'New Tab', url: '/browse', isActive: true };
+    setTabs(prev => prev.map(x => ({ ...x, isActive: false })).concat(t));
+    navigate('/browse');
   };
 
-  const handleCloseTab = (tabId: string, e: React.MouseEvent) => {
+  const handleCloseTab = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const remainingTabs = tabs.filter(t => t.id !== tabId);
-    if (remainingTabs.length > 0) {
-      const wasActive = tabs.find(t => t.id === tabId)?.isActive;
-      if (wasActive && remainingTabs.length > 0) {
-        remainingTabs[0].isActive = true;
-      }
-      setTabs(remainingTabs);
-      showToast('Tab closed', 'info');
+    const remaining = tabs.filter(t => t.id !== id);
+    if (!remaining.length) return;
+    const wasActive = tabs.find(t => t.id === id)?.isActive;
+    if (wasActive) remaining[remaining.length - 1].isActive = true;
+    setTabs(remaining);
+  };
+
+  const handleSwitchTab = (id: string) => {
+    setTabs(prev => prev.map(t => ({ ...t, isActive: t.id === id })));
+    const tab = tabs.find(t => t.id === id);
+    if (tab) navigate(tab.url);
+  };
+
+  const handleUrlSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !urlBarValue.trim()) return;
+    const val = urlBarValue.trim();
+    if (val.startsWith('http') || val.includes('.')) {
+      executeCommand(`navigate ${val}`, { currentUrl: window.location.href }).catch(() => {});
     } else {
-      showToast('Cannot close the last tab', 'warning');
+      navigate(`/browse?q=${encodeURIComponent(val)}`);
     }
   };
 
-  const isActiveRoute = (path: string) => {
-    return location.pathname === path || (path === '/' && location.pathname === '/');
+  const handleMenuAction = (label: string) => {
+    setShowMenu(false);
+    const map: Record<string, string> = {
+      'New Tab':  '/browse',
+      History:    '/history',
+      Downloads:  '/downloads',
+      Settings:   '/settings',
+    };
+    if (map[label]) navigate(map[label]);
+    else if (label === 'New Tab') handleNewTab();
+    else if (label === 'Exit') window.close();
   };
 
+  const isFullPage = ['/history', '/downloads', '/settings'].includes(location.pathname);
+
   return (
-    <div className="h-screen w-screen bg-slate-900 text-white flex flex-col overflow-hidden">
+    <div
+      className="h-screen w-screen flex flex-col overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1f35 100%)' }}
+    >
       <ToastContainer />
-      {/* Regen Core - Sentinel AI Presence (global, not in routes) */}
-      <RegenCore />
-      {/* AI Offline Indicator - Shows when AI backend is unavailable */}
-      {/* Subtle AI Status Dot - replaces loud banner */}
-      <div className="fixed top-4 right-4 z-50">
-        <AIStatusDot size="md" showTooltip={true} />
-      </div>
-      {/* Browser Tabs */}
-      <div className="flex items-center bg-slate-800 border-b border-slate-700 px-2 py-1 min-h-[36px]">
-        <div className="flex items-center space-x-1 mr-2">
-          <Sparkles className="w-4 h-4 text-blue-400" />
-          <span className="text-sm font-medium text-slate-200">Regen Browser</span>
-        </div>
 
-        {tabs.map((tab) => (
-          <motion.div
-            key={tab.id}
-            onClick={() => {
-              setTabs(prev => prev.map(t => ({ ...t, isActive: t.id === tab.id })));
-              
-              // FIX: Route navigation through CommandController for web URLs
-              if (tab.url.startsWith('http://') || tab.url.startsWith('https://')) {
-                // Web navigation - route through CommandController
-                executeCommand(`navigate ${tab.url}`, {
-                  currentUrl: window.location.href,
-                  activeTab: tab.id,
-                }).catch((error) => {
-                  console.error('[AppShell] Navigation failed:', error);
-                });
-              } else if (tab.url.startsWith('/')) {
-                // Internal route - use React Router (app navigation, not web navigation)
-                navigate(tab.url);
-              }
-            }}
-            className={`flex items-center space-x-2 px-3 py-1.5 mx-0.5 rounded-t-lg cursor-pointer border-b-2 transition-all group min-w-[120px] max-w-[200px] ${
-              tab.isActive
-                ? 'bg-slate-900 border-blue-500 text-slate-100'
-                : 'bg-slate-700/50 border-transparent text-slate-400 hover:bg-slate-700 hover:text-slate-300'
-            }`}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span className="truncate text-xs font-medium flex-1">{tab.title}</span>
-            {tabs.length > 1 && (
-              <motion.button
-                onClick={(e) => handleCloseTab(tab.id, e)}
-                className="opacity-0 group-hover:opacity-100 hover:bg-slate-600 rounded p-0.5 transition-all"
-                whileHover={{ scale: 1.2, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <X className="w-3 h-3" />
-              </motion.button>
-              )}
-            </motion.div>
-        ))}
-
+      {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
+      <div
+        className="flex items-center px-4 gap-3 flex-shrink-0"
+        style={{ height: 56 }}
+      >
+        {/* Logo */}
         <button
-          onClick={handleNewTab}
-          className="flex items-center justify-center w-6 h-6 mx-1 rounded hover:bg-slate-700 transition-colors"
-          title="New Tab"
+          onClick={() => navigate('/')}
+          className="flex items-center space-x-1 outline-none flex-shrink-0"
         >
-          <Plus className="w-3 h-3 text-slate-400" />
+          <img
+            src="/images/icon-512c.png"
+            alt="REGEN AI"
+            style={{ width: 28, height: 28 }}
+            className="object-contain"
+          />
+          <span style={{ color: '#F5A623', fontSize: 14, fontWeight: 700 }}>
+            REGEN AI
+          </span>
         </button>
-      </div>
 
-      {/* Navigation Bar */}
-      <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800 border-b border-slate-700">
-        <div className="flex items-center space-x-1">
-          <motion.button
-            onClick={() => showToast('Downloads page coming soon', 'info')}
-            className="p-1.5 rounded hover:bg-slate-700 transition-colors"
-            title="Download"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+        {/* General / Research toggle — centered */}
+        <div className="flex-1 flex justify-center">
+          <div
+            className="flex items-center rounded-full flex-shrink-0"
+            style={{
+              background: 'rgba(0,0,0,0.30)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              padding: 4,
+              gap: 4,
+            }}
           >
-            <Download className="w-4 h-4 text-slate-400" />
-          </motion.button>
-          <motion.button
-            onClick={() => window.location.reload()}
-            className="p-1.5 rounded hover:bg-slate-700 transition-colors"
-            title="Refresh"
-            whileHover={{ scale: 1.1, rotate: 180 }}
-            whileTap={{ scale: 0.9 }}
-            transition={{ duration: 0.3 }}
-          >
-            <RefreshCw className="w-4 h-4 text-slate-400" />
-          </motion.button>
-          <motion.button
-            onClick={() => window.history.forward()}
-            className="p-1.5 rounded hover:bg-slate-700 transition-colors"
-            title="Forward"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <ArrowRight className="w-4 h-4 text-slate-400" />
-          </motion.button>
+            {(['general', 'research'] as BrowserMode[]).map(m => (
+              <button
+                key={m}
+                onClick={() => handleModeSwitch(m)}
+                className="flex items-center rounded-full font-semibold transition-all"
+                style={
+                  mode === m
+                    ? { fontSize: 13, background: '#F5A623', color: '#fff', padding: '6px 18px', gap: 6 }
+                    : { fontSize: 13, color: 'rgba(255,255,255,0.55)', background: 'transparent', padding: '6px 18px', gap: 6 }
+                }
+              >
+                <span style={{ fontSize: 13 }}>{m === 'general' ? '🌐' : '📖'}</span>
+                <span className="capitalize">{m}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex-1 relative mx-4">
-          <motion.div
-            className="relative"
-            animate={isExecuting ? { scale: 1.01 } : { scale: 1 }}
-            transition={{ duration: 0.2 }}
+        {/* Bell + Avatar */}
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <button className="text-white/50 hover:text-white transition-colors p-1">
+            <Bell style={{ width: 17, height: 17 }} />
+          </button>
+          <div
+            className="rounded-full flex items-center justify-center font-bold text-white cursor-pointer"
+            style={{ width: 28, height: 28, fontSize: 12, background: 'linear-gradient(135deg,#2ecc71,#27ae60)' }}
           >
+            A
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB STRIP ───────────────────────────────────────────────────── */}
+      {!isFullPage && (
+        <div
+          className="flex items-center px-2 flex-shrink-0 overflow-hidden"
+          style={{
+            height: 36,
+            background: 'rgba(0,0,0,0.15)',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {tabs.map(tab => (
+            <div
+              key={tab.id}
+              onClick={() => handleSwitchTab(tab.id)}
+              className="flex items-center space-x-1.5 px-3 mx-0.5 rounded-lg cursor-pointer group select-none"
+              style={{
+                height: 26,
+                background: tab.isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+                border:     tab.isActive ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                minWidth: 90,
+                maxWidth: 160,
+              }}
+            >
+              <span style={{ fontSize: 11 }}>{tab.favicon ?? '🌐'}</span>
+              <span className="truncate text-white/80 flex-1" style={{ fontSize: 12 }}>{tab.title}</span>
+              {tabs.length > 1 && (
+                <button
+                  onClick={e => handleCloseTab(tab.id, e)}
+                  className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-white transition-all"
+                >
+                  <X style={{ width: 11, height: 11 }} />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={handleNewTab}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/50 hover:text-white transition-all ml-1"
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+      )}
+
+      {/* ── NAV + TOOLBAR BAR ───────────────────────────────────────────── */}
+      {!isFullPage && (
+        <div
+          className="flex items-center gap-1 px-2 flex-shrink-0"
+          style={{
+            height: 36,
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          {/* Nav controls */}
+          <div className="flex items-center flex-shrink-0">
+            {[
+              { icon: ChevronLeft,  action: () => window.history.back(),    title: 'Back'    },
+              { icon: ChevronRight, action: () => window.history.forward(), title: 'Forward' },
+              { icon: RotateCw,     action: () => window.location.reload(), title: 'Reload'  },
+            ].map(({ icon: Icon, action, title }) => (
+              <button
+                key={title}
+                onClick={action}
+                title={title}
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+              >
+                <Icon style={{ width: 14, height: 14 }} />
+              </button>
+            ))}
+          </div>
+
+          {/* URL bar — Chrome-style, fills middle */}
+          <div className="flex-1 relative mx-2">
+            <Globe
+              className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ left: 12, width: 13, height: 13, color: 'rgba(255,255,255,0.30)' }}
+            />
             <input
               type="text"
-              value={commandInput}
-              onChange={(e) => setCommandInput(e.target.value)}
-              onKeyPress={handleCommandKeyPress}
-              placeholder="Search, navigate, or ask Regen..."
-              className={`w-full pl-4 pr-4 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 focus:outline-none focus:bg-slate-700 transition-all text-sm ${
-                isExecuting
-                  ? 'border-yellow-500/50 animate-pulse'
-                  : 'border-slate-600 focus:border-blue-500'
-              }`}
-              disabled={isExecuting}
+              value={urlBarValue}
+              onChange={e => setUrlBarValue(e.target.value)}
+              onKeyDown={handleUrlSubmit}
+              placeholder="Search or enter URL"
+              className="w-full outline-none transition-all"
+              style={{
+                height: 28,
+                paddingLeft: 32,
+                paddingRight: 12,
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.70)',
+                background: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 20,
+              }}
+              onFocus={e => (e.target.style.borderColor = 'rgba(245,166,35,0.6)')}
+              onBlur={e  => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
             />
-            {isExecuting && (
-              <motion.div
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          </div>
+
+          {/* Toolbar icons */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {[
+              { icon: Download, title: 'Downloads', action: () => navigate('/downloads') },
+              { icon: Bookmark, title: 'Bookmarks', action: () => {}                     },
+              { icon: Settings, title: 'Settings',  action: () => navigate('/settings')  },
+            ].map(({ icon: Icon, title, action }) => (
+              <button
+                key={title}
+                title={title}
+                onClick={action}
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
               >
-                <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
+                <Icon style={{ width: 15, height: 15 }} />
+              </button>
+            ))}
 
-        <div className="flex items-center space-x-3">
-          {/* Local Assistance Toggle - integrated with search/controls */}
-          <div className="flex items-center space-x-2 px-2 py-1.5 rounded-lg bg-slate-700/30 border border-slate-600/50">
-            <Bot className="w-3.5 h-3.5 text-blue-400" />
-            <Toggle
-              checked={localAssistanceEnabled}
-              onChange={setLocalAssistanceEnabled}
-              size="sm"
-              className="items-center space-x-1"
-            />
-          </div>
+            {/* ⋮ menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(v => !v)}
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+              >
+                <MoreVertical style={{ width: 15, height: 15 }} />
+              </button>
 
-          {/* Run button - demoted, only show when command detected */}
-          {commandInput.trim() && (
-            <motion.button
-              onClick={handleRunCommand}
-              disabled={isExecuting}
-              className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-1.5 transition-colors ${
-                isExecuting
-                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white'
-              }`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={!isExecuting ? { scale: 1.05 } : {}}
-              whileTap={!isExecuting ? { scale: 0.95 } : {}}
-            >
-              <Rocket className="w-3.5 h-3.5" />
-              <span>{isExecuting ? '...' : 'Execute'}</span>
-            </motion.button>
-          )}
-          <motion.button
-            onClick={() => showToast('Screenshot feature coming soon', 'info')}
-            className="p-2 rounded hover:bg-slate-700 transition-colors"
-            title="Screenshot"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <Camera className="w-4 h-4 text-slate-400" />
-          </motion.button>
-          <motion.button
-            onClick={() => navigate('/workspace')}
-            className="p-2 rounded hover:bg-slate-700 transition-colors"
-            title="Workspace"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <Folder className="w-4 h-4 text-slate-400" />
-          </motion.button>
-          <motion.button
-            onClick={() => navigate('/settings')}
-            className="p-2 rounded hover:bg-slate-700 transition-colors"
-            title="Settings"
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Settings className="w-4 h-4 text-slate-400" />
-          </motion.button>
-        </div>
-      </div>
-
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        <motion.nav
-          className="w-64 bg-slate-800 border-r border-slate-700 p-4 flex flex-col"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="flex items-center space-x-2 mb-6">
-            <Sparkles className="w-5 h-5 text-blue-400" />
-            <span className="font-semibold text-slate-200">Regen Browser</span>
-          </div>
-
-          <div className="space-y-1 flex-1">
-            <NavLink
-              to="/"
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group ${
-                  isActive
-                    ? 'bg-blue-600/20 text-blue-400 border-l-2 border-blue-500'
-                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <motion.div
-                    animate={isActive ? { scale: 1.1, rotate: 5 } : { scale: 1, rotate: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <FileText className="w-5 h-5" />
-                  </motion.div>
-                  <span className="font-medium">Control Room</span>
-                  {isActive && (
+              <AnimatePresence>
+                {showMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
                     <motion.div
-                      className="ml-auto w-2 h-2 bg-blue-400 rounded-full"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 500 }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
-
-            <NavLink
-              to="/browse"
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group ${
-                  isActive
-                    ? 'bg-orange-600/20 text-orange-400 border-l-2 border-orange-500'
-                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <motion.div
-                    animate={isActive ? { scale: 1.1 } : { scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Square className="w-5 h-5" />
-                  </motion.div>
-                  <span className="font-medium">Browse</span>
-                  {isActive && (
-                    <motion.div
-                      className="ml-auto w-2 h-2 bg-orange-400 rounded-full"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 500 }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
-
-            <NavLink
-              to="/workspace"
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group ${
-                  isActive
-                    ? 'bg-yellow-600/20 text-yellow-400 border-l-2 border-yellow-500'
-                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <motion.div
-                    animate={isActive ? { scale: 1.1 } : { scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Folder className="w-5 h-5" />
-                  </motion.div>
-                  <span className="font-medium">Local Workspace</span>
-                  {/* Activity indicator - pulse if workspace has items */}
-                  {workspaceCount > 0 && (
-                    <motion.div
-                      className="ml-auto w-1.5 h-1.5 bg-yellow-400/60 rounded-full"
-                      animate={{
-                        opacity: [0.5, 0.9, 0.5],
+                      initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                      animate={{ opacity: 1, scale: 1,    y: 0  }}
+                      exit={  { opacity: 0, scale: 0.95, y: -6 }}
+                      transition={{ duration: 0.13 }}
+                      className="absolute right-0 top-full mt-1 rounded-xl py-1.5 z-50 overflow-hidden shadow-2xl"
+                      style={{
+                        width:      270,
+                        background: '#15273d',
+                        border:     '1px solid rgba(255,255,255,0.1)',
                       }}
-                      transition={{
-                        duration: 2.5,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                      }}
-                    />
-                  )}
-                  {isActive && workspaceCount === 0 && (
-                    <motion.div
-                      className="ml-auto w-2 h-2 bg-yellow-400 rounded-full"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 500 }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
+                    >
+                      <div className="flex items-center justify-between px-4 py-2 mb-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold text-white">A</div>
+                          <span className="text-sm text-white/80 font-medium">Albert</span>
+                        </div>
+                        <button className="text-xs px-3 py-0.5 rounded-full text-white/60 border border-white/25 hover:border-white/50 transition-all">
+                          Sign in
+                        </button>
+                      </div>
 
-            <NavLink
-              to="/task-runner"
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group ${
-                  isActive
-                    ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <motion.div
-                    animate={isActive ? { scale: 1.1 } : { scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Brain className="w-5 h-5" />
-                  </motion.div>
-                  <span className="font-medium">Observations</span>
-                  {/* Activity indicator - subtle pulse when Regen Core is active */}
-                  <motion.div
-                    className="ml-auto w-1.5 h-1.5 bg-purple-400/60 rounded-full"
-                    animate={{
-                      opacity: [0.4, 0.8, 0.4],
-                      scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    }}
-                  />
-                </>
-              )}
-            </NavLink>
-
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group ${
-                  isActive
-                    ? 'bg-slate-600/20 text-slate-300 border-l-2 border-slate-500'
-                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <motion.div
-                    animate={isActive ? { scale: 1.1, rotate: 90 } : { scale: 1, rotate: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Settings className="w-5 h-5" />
-                  </motion.div>
-                  <span className="font-medium">Settings</span>
-                  {isActive && (
-                    <motion.div
-                      className="ml-auto w-2 h-2 bg-slate-300 rounded-full"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 500 }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
+                      {SIDE_MENU_ITEMS.map((item, i) => (
+                        <React.Fragment key={i}>
+                          {item.isZoom ? (
+                            <div className="flex items-center justify-between px-4 py-2 text-xs text-white/70">
+                              <span>{item.label}</span>
+                              <div className="flex items-center space-x-2">
+                                <button onClick={() => setZoom(z => Math.max(25,  z - 10))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/60">–</button>
+                                <span className="w-10 text-center text-white/50">{zoom}%</span>
+                                <button onClick={() => setZoom(z => Math.min(500, z + 10))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/60">+</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleMenuAction(item.label)}
+                              className="w-full flex items-center justify-between px-4 py-1.5 text-xs text-white/70 hover:text-white text-left transition-all"
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                              style={{ background: 'transparent' }}
+                            >
+                              <span>{item.label}</span>
+                              {item.shortcut && <span className="text-white/30">{item.shortcut}</span>}
+                            </button>
+                          )}
+                          {DIVIDERS.includes(item.label) && (
+                            <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '2px 0' }} />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </motion.nav>
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {children}
-          </div>
-          
         </div>
+      )}
+
+      {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-hidden min-h-0">
+        {children}
       </div>
 
-      {/* Status Bar */}
-      <div className="border-t border-slate-700 bg-slate-800 px-4 py-2 flex justify-between items-center text-xs">
-        <div className="flex items-center space-x-4">
-          <span className="text-slate-300">
-            Status: <span className={
-              status === 'idle' ? 'text-green-400' :
-              status === 'working' ? 'text-yellow-400' :
-              'text-red-400'
-            }>{status === 'idle' ? 'Idle' : status === 'working' ? 'Working' : 'Recovering'}</span>
-            {' - '}
-            <span className="text-blue-400">Local-first</span>
-            {' - '}
-            <span className="text-purple-400">Offline-ready</span>
-          </span>
-          {lastAction && (
-            <span className="flex items-center space-x-1 text-slate-400">
-              <CheckCircle className="w-3 h-3 text-green-400" />
-              <span>Last action: {lastAction}</span>
-            </span>
-          )}
-        </div>
-        <div className="flex items-center space-x-3">
-          {/* Status indicators */}
-          <span className="text-slate-400 text-xs">Local-first • Offline-ready</span>
-        </div>
-      </div>
-
-      {/* Regen-v1 Avatar Components */}
+      {/* ── BOTTOM STATUS BAR ───────────────────────────────────────────── */}
       <div
+        className="flex items-center justify-between px-4 flex-shrink-0"
         style={{
-          position: "fixed",
-          bottom: "80px",
-          right: "20px",
-          zIndex: 9998,
+          height:     26,
+          borderTop:  '1px solid rgba(255,255,255,0.05)',
+          background: 'rgba(0,0,0,0.18)',
         }}
       >
-        <Avatar size={56} />
+        <div className="flex items-center space-x-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          <span className="text-xs text-green-400 font-medium">Online</span>
+        </div>
+        <div className="flex items-center space-x-2.5">
+          <Wifi    style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.35)' }} />
+          <Battery style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.35)' }} />
+          <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+            <div className="h-full rounded-full" style={{ width: '65%', background: '#F5A623' }} />
+          </div>
+        </div>
       </div>
-      
-      <CommandInput 
-        isOpen={showCommandInput}
-        onClose={() => setShowCommandInput(false)}
-      />
-      
-      <AvatarStatusIndicator />
     </div>
   );
 }

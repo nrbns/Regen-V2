@@ -1,149 +1,94 @@
-// Control Room - Live status view for Regen Browser
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Folder, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useCommandController } from '../hooks/useCommandController';
-import { workspaceStore } from '../lib/workspace/WorkspaceStore';
-import { RecentActivityFeed } from '../components/ui/RecentActivityFeed';
-import { useRegenCore } from '../core/regen-core/regenCore.store';
+import { Paperclip, Mic, Send } from 'lucide-react';
+
+const QUICK_COMMANDS = ['/ask', '/summarize', '/extract', '/explain'];
 
 export default function Home() {
-  const navigate = useNavigate();
-  useCommandController(); // keep controller warm for command bar usage
-  const [workspaceCount, setWorkspaceCount] = useState(0);
-  const { state: regenCoreState } = useRegenCore();
+  const [input, setInput] = useState('');
 
-  // Load workspace count
-  useEffect(() => {
-    setWorkspaceCount(workspaceStore.getCount());
-  }, []);
+  const handleSend = () => {
+    if (!input.trim()) return;
+    setInput('');
+  };
 
-  const regenCoreStatusLine = useMemo(() => {
-    switch (regenCoreState) {
-      case 'observing':
-        return 'Regen Core status: Observing';
-      case 'aware':
-        return 'Regen Core status: Aware';
-      case 'noticing':
-        return 'Regen Core status: Observation available';
-      case 'executing':
-        return 'Regen Core status: Executing';
-      case 'reporting':
-        return 'Regen Core status: Reporting';
-      default:
-        return 'Regen Core status: Observing';
-    }
-  }, [regenCoreState]);
-
-  const criticalPatternsLine = useMemo(() => {
-    return regenCoreState === 'observing' ? 'No critical patterns detected' : 'Pattern detected — details available';
-  }, [regenCoreState]);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSend();
+  };
 
   return (
-    <div className="h-full flex bg-slate-900 text-white">
-      {/* Main Content Area */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+    <div className="h-full w-full relative overflow-hidden flex flex-col">
+      {/* Character — fills the upper portion, centered */}
+      <div className="flex-1 flex items-end justify-center overflow-hidden">
+        <motion.img
+          src="/images/character-half-sm.png"
+          alt="REGEN AI Assistant"
+          className="object-contain object-bottom select-none pointer-events-none"
+          style={{ height: '90%', maxHeight: 460, width: 'auto' }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-4xl mx-auto"
-        >
-          {/* Header */}
-          <motion.div
-            className="mb-8"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-          >
-            <div className="flex items-center space-x-3 mb-2">
-              <Sparkles className="w-8 h-8 text-blue-400" />
-              <h1 className="text-3xl font-semibold text-slate-200">System Control Room</h1>
-            </div>
-            <p className="text-sm text-slate-400">Current system state</p>
-            <div className="mt-3 text-sm text-slate-400 space-y-1">
-              <div>• Browsing session active</div>
-              <div>• {criticalPatternsLine}</div>
-              <div>• {regenCoreStatusLine}</div>
-            </div>
-          </motion.div>
-
-          {/* Recent Activity Feed */}
-          <RecentActivityFeed />
-
-          {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Search & Summarize (status summary) */}
-            <motion.div
-              className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-6 shadow-sm"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: 0.05 }}
-            >
-              <div className="w-11 h-11 bg-slate-700/40 rounded-lg flex items-center justify-center mb-4">
-                <Search className="w-5 h-5 text-slate-300" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-200 mb-2">Search & Summarize</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">No summarization needed at the moment</p>
-              <button
-                onClick={() => navigate('/ai-search')}
-                className="mt-3 text-sm text-slate-400 hover:text-slate-300 transition-colors"
-              >
-                View history →
-              </button>
-            </motion.div>
-
-            {/* Observations (status summary) */}
-            <motion.div
-              className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-6 shadow-sm"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: 0.1 }}
-            >
-              <div className="w-11 h-11 bg-slate-700/40 rounded-lg flex items-center justify-center mb-4">
-                <Sparkles className="w-5 h-5 text-slate-300" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-200 mb-2">Observations</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">
-                {regenCoreState === 'observing'
-                  ? 'No active observations at the moment'
-                  : 'Observation available — review suggested action'}
-              </p>
-              <button
-                onClick={() => navigate('/task-runner')}
-                className="mt-3 text-sm text-slate-400 hover:text-slate-300 transition-colors"
-              >
-                Open observation log →
-              </button>
-            </motion.div>
-
-            {/* Local Workspace (status summary) */}
-            <motion.div
-              className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-6 shadow-sm"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: 0.15 }}
-            >
-              <div className="w-11 h-11 bg-slate-700/40 rounded-lg flex items-center justify-center mb-4">
-                <Folder className="w-5 h-5 text-slate-300" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-200 mb-2">Local Workspace</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">
-                {workspaceCount > 0
-                  ? `${workspaceCount} item${workspaceCount === 1 ? '' : 's'} saved automatically this session`
-                  : 'Regen saves things only when they matter'}
-              </p>
-              <button
-                onClick={() => navigate('/workspace')}
-                className="mt-3 text-sm text-slate-400 hover:text-slate-300 transition-colors"
-              >
-                View workspace →
-              </button>
-            </motion.div>
-          </div>
-        </motion.div>
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          draggable={false}
+        />
       </div>
+
+      {/* Chat Input Bar — pinned to bottom */}
+      <motion.div
+        className="px-4 pb-3 pt-1 flex-shrink-0"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+      >
+        {/* Frosted glass input */}
+        <div
+          className="flex items-center space-x-2 rounded-2xl px-4 py-2.5 mb-2"
+          style={{
+            background: 'rgba(10, 25, 50, 0.75)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <Paperclip style={{ width: 15, height: 15 }} className="text-white/35 flex-shrink-0 cursor-pointer hover:text-white/60 transition-colors" />
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type message, enter link or /command..."
+            className="flex-1 bg-transparent text-white/75 placeholder-white/30 outline-none"
+            style={{ fontSize: 14 }}
+          />
+          <button className="text-white/35 hover:text-white/60 transition-colors">
+            <Mic style={{ width: 15, height: 15 }} />
+          </button>
+          <motion.button
+            onClick={handleSend}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ width: 28, height: 28, background: '#F5A623' }}
+          >
+            <Send style={{ width: 13, height: 13 }} className="text-white" />
+          </motion.button>
+        </div>
+
+        {/* Quick command chips */}
+        <div className="flex items-center space-x-2">
+          {QUICK_COMMANDS.map((cmd) => (
+            <button
+              key={cmd}
+              onClick={() => setInput(cmd + ' ')}
+              className="px-3 py-1 rounded-full text-xs text-white/55 hover:text-white/80 transition-all"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              {cmd}
+            </button>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 }

@@ -21,6 +21,7 @@ const Settings = React.lazy(() => import('./routes/Settings'));
 const Video = React.lazy(() => import('./routes/Video'));
 const Watchers = React.lazy(() => import('./routes/Watchers'));
 const Workspace = React.lazy(() => import('./routes/Workspace'));
+const Research = React.lazy(() => import('./routes/Research'));
 
 // Loading fallback component
 function LoadingFallback() {
@@ -57,6 +58,7 @@ function AppContent() {
             <Route path="/video" element={<Video />} />
             <Route path="/watchers" element={<Watchers />} />
             <Route path="/workspace" element={<Workspace />} />
+            <Route path="/research" element={<Research />} />
             {/* Catch all route - redirect to home */}
             <Route path="*" element={<Home />} />
           </Routes>
