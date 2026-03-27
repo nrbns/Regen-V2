@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme, THEMES } from '../../contexts/ThemeContext';
 import {
   Bell,
   Download,
@@ -55,6 +56,9 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
   const location = useLocation();
   const navigate = useNavigate();
   const { executeCommand } = useCommandController();
+
+  const { resolvedTheme } = useTheme();
+  const T = THEMES[resolvedTheme];
 
   const [mode,        setMode]        = useState<BrowserMode>('general');
   const [showMenu,    setShowMenu]    = useState(false);
@@ -122,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
   return (
     <div
       className="h-screen w-screen flex flex-col overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1f35 100%)' }}
+      style={{ background: T.bg }}
     >
       <ToastContainer />
 
@@ -134,15 +138,16 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
         {/* Logo */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center space-x-1 outline-none flex-shrink-0"
+          className="flex items-center outline-none flex-shrink-0"
+          style={{ gap: 4, alignItems: 'center' }}
         >
           <img
             src="/images/icon-512c.png"
             alt="REGEN AI"
-            style={{ width: 28, height: 28 }}
-            className="object-contain"
+            style={{ width: 24, height: 24, marginRight: -4, display: 'block' }}
+            className="object-contain flex-shrink-0"
           />
-          <span style={{ color: '#F5A623', fontSize: 14, fontWeight: 700 }}>
+          <span style={{ color: T.accent, fontSize: 14, fontWeight: 700, lineHeight: '24px' }}>
             REGEN AI
           </span>
         </button>
@@ -152,8 +157,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
           <div
             className="flex items-center rounded-full flex-shrink-0"
             style={{
-              background: 'rgba(0,0,0,0.30)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: T.toggleBg,
+              border: `1px solid ${T.toggleBorder}`,
               padding: 4,
               gap: 4,
             }}
@@ -165,8 +170,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                 className="flex items-center rounded-full font-semibold transition-all"
                 style={
                   mode === m
-                    ? { fontSize: 13, background: '#F5A623', color: '#fff', padding: '6px 18px', gap: 6 }
-                    : { fontSize: 13, color: 'rgba(255,255,255,0.55)', background: 'transparent', padding: '6px 18px', gap: 6 }
+                    ? { fontSize: 13, background: T.accent, color: '#fff', padding: '6px 18px', gap: 6 }
+                    : { fontSize: 13, color: T.textMuted, background: 'transparent', padding: '6px 18px', gap: 6 }
                 }
               >
                 <span style={{ fontSize: 13 }}>{m === 'general' ? '🌐' : '📖'}</span>
@@ -178,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
 
         {/* Bell + Avatar */}
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className="text-white/50 hover:text-white transition-colors p-1">
+          <button style={{ color: T.textDim }} className="hover:opacity-100 transition-colors p-1">
             <Bell style={{ width: 17, height: 17 }} />
           </button>
           <div
@@ -196,8 +201,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
           className="flex items-center px-2 flex-shrink-0 overflow-hidden"
           style={{
             height: 36,
-            background: 'rgba(0,0,0,0.15)',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            background: T.tabStrip,
+            borderBottom: `1px solid ${T.border}`,
           }}
         >
           {tabs.map(tab => (
@@ -207,18 +212,19 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
               className="flex items-center space-x-1.5 px-3 mx-0.5 rounded-lg cursor-pointer group select-none"
               style={{
                 height: 26,
-                background: tab.isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
-                border:     tab.isActive ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                background: tab.isActive ? T.tabActive : 'transparent',
+                border:     tab.isActive ? `1px solid ${T.tabActiveBorder}` : '1px solid transparent',
                 minWidth: 90,
                 maxWidth: 160,
               }}
             >
               <span style={{ fontSize: 11 }}>{tab.favicon ?? '🌐'}</span>
-              <span className="truncate text-white/80 flex-1" style={{ fontSize: 12 }}>{tab.title}</span>
+              <span className="truncate flex-1" style={{ fontSize: 12, color: T.text, opacity: 0.8 }}>{tab.title}</span>
               {tabs.length > 1 && (
                 <button
                   onClick={e => handleCloseTab(tab.id, e)}
-                  className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-white transition-all"
+                  className="opacity-0 group-hover:opacity-100 transition-all"
+                  style={{ color: T.textDim }}
                 >
                   <X style={{ width: 11, height: 11 }} />
                 </button>
@@ -227,7 +233,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
           ))}
           <button
             onClick={handleNewTab}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/50 hover:text-white transition-all ml-1"
+            className="w-6 h-6 flex items-center justify-center rounded transition-all ml-1"
+            style={{ color: T.textDim }}
           >
             <Plus style={{ width: 14, height: 14 }} />
           </button>
@@ -240,7 +247,7 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
           className="flex items-center gap-1 px-2 flex-shrink-0"
           style={{
             height: 36,
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            borderBottom: `1px solid ${T.borderSubtle}`,
           }}
         >
           {/* Nav controls */}
@@ -254,7 +261,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                 key={title}
                 onClick={action}
                 title={title}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+                className="w-7 h-7 flex items-center justify-center rounded transition-all"
+                style={{ color: T.textDim }}
               >
                 <Icon style={{ width: 14, height: 14 }} />
               </button>
@@ -262,30 +270,29 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
           </div>
 
           {/* URL bar — Chrome-style, fills middle */}
-          <div className="flex-1 relative mx-2">
-            <Globe
-              className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ left: 12, width: 13, height: 13, color: 'rgba(255,255,255,0.30)' }}
-            />
+          <div
+            className="flex-1 flex items-center mx-2"
+            style={{
+              height: 28,
+              background: T.inputBg,
+              border: `1px solid ${T.inputBorder}`,
+              borderRadius: 20,
+              paddingLeft: 10,
+              paddingRight: 10,
+              gap: 6,
+            }}
+          >
+            <Globe style={{ width: 13, height: 13, color: T.textDim, flexShrink: 0 }} />
             <input
               type="text"
               value={urlBarValue}
               onChange={e => setUrlBarValue(e.target.value)}
               onKeyDown={handleUrlSubmit}
               placeholder="Search or enter URL"
-              className="w-full outline-none transition-all"
-              style={{
-                height: 28,
-                paddingLeft: 32,
-                paddingRight: 12,
-                fontSize: 13,
-                color: 'rgba(255,255,255,0.70)',
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                borderRadius: 20,
-              }}
-              onFocus={e => (e.target.style.borderColor = 'rgba(245,166,35,0.6)')}
-              onBlur={e  => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
+              className="flex-1 outline-none bg-transparent"
+              style={{ fontSize: 13, color: T.textMuted }}
+              onFocus={e => (e.currentTarget.parentElement!.style.borderColor = 'rgba(245,166,35,0.6)')}
+              onBlur={e  => (e.currentTarget.parentElement!.style.borderColor = T.inputBorder)}
             />
           </div>
 
@@ -300,7 +307,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                 key={title}
                 title={title}
                 onClick={action}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+                className="w-7 h-7 flex items-center justify-center rounded transition-all"
+                style={{ color: T.textDim }}
               >
                 <Icon style={{ width: 15, height: 15 }} />
               </button>
@@ -310,7 +318,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
             <div className="relative">
               <button
                 onClick={() => setShowMenu(v => !v)}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+                className="w-7 h-7 flex items-center justify-center rounded transition-all"
+                style={{ color: T.textDim }}
               >
                 <MoreVertical style={{ width: 15, height: 15 }} />
               </button>
@@ -327,14 +336,14 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                       className="absolute right-0 top-full mt-1 rounded-xl py-1.5 z-50 overflow-hidden shadow-2xl"
                       style={{
                         width:      270,
-                        background: '#15273d',
-                        border:     '1px solid rgba(255,255,255,0.1)',
+                        background: T.menuBg,
+                        border:     `1px solid ${T.menuBorder}`,
                       }}
                     >
-                      <div className="flex items-center justify-between px-4 py-2 mb-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center justify-between px-4 py-2 mb-1" style={{ borderBottom: `1px solid ${T.border}` }}>
                         <div className="flex items-center space-x-2">
                           <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold text-white">A</div>
-                          <span className="text-sm text-white/80 font-medium">Albert</span>
+                          <span className="text-sm font-medium" style={{ color: T.text, opacity: 0.8 }}>Albert</span>
                         </div>
                         <button className="text-xs px-3 py-0.5 rounded-full text-white/60 border border-white/25 hover:border-white/50 transition-all">
                           Sign in
@@ -344,18 +353,19 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                       {SIDE_MENU_ITEMS.map((item, i) => (
                         <React.Fragment key={i}>
                           {item.isZoom ? (
-                            <div className="flex items-center justify-between px-4 py-2 text-xs text-white/70">
+                            <div className="flex items-center justify-between px-4 py-2 text-xs" style={{ color: T.textMuted }}>
                               <span>{item.label}</span>
                               <div className="flex items-center space-x-2">
-                                <button onClick={() => setZoom(z => Math.max(25,  z - 10))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/60">–</button>
-                                <span className="w-10 text-center text-white/50">{zoom}%</span>
-                                <button onClick={() => setZoom(z => Math.min(500, z + 10))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/60">+</button>
+                                <button onClick={() => setZoom(z => Math.max(25,  z - 10))} className="w-6 h-6 flex items-center justify-center rounded" style={{ color: T.textMuted }}>–</button>
+                                <span className="w-10 text-center" style={{ color: T.textDim }}>{zoom}%</span>
+                                <button onClick={() => setZoom(z => Math.min(500, z + 10))} className="w-6 h-6 flex items-center justify-center rounded" style={{ color: T.textMuted }}>+</button>
                               </div>
                             </div>
                           ) : (
                             <button
                               onClick={() => handleMenuAction(item.label)}
-                              className="w-full flex items-center justify-between px-4 py-1.5 text-xs text-white/70 hover:text-white text-left transition-all"
+                              className="w-full flex items-center justify-between px-4 py-1.5 text-xs text-left transition-all"
+                              style={{ color: T.textMuted }}
                               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
                               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                               style={{ background: 'transparent' }}
@@ -388,8 +398,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
         className="flex items-center justify-between px-4 flex-shrink-0"
         style={{
           height:     26,
-          borderTop:  '1px solid rgba(255,255,255,0.05)',
-          background: 'rgba(0,0,0,0.18)',
+          borderTop:  `1px solid ${T.borderSubtle}`,
+          background: T.statusBar,
         }}
       >
         <div className="flex items-center space-x-1.5">
@@ -397,8 +407,8 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
           <span className="text-xs text-green-400 font-medium">Online</span>
         </div>
         <div className="flex items-center space-x-2.5">
-          <Wifi    style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.35)' }} />
-          <Battery style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.35)' }} />
+          <Wifi    style={{ width: 13, height: 13, color: T.textDim }} />
+          <Battery style={{ width: 13, height: 13, color: T.textDim }} />
           <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
             <div className="h-full rounded-full" style={{ width: '65%', background: '#F5A623' }} />
           </div>

@@ -1,5 +1,50 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+export const THEMES = {
+  dark: {
+    bg:             'linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1f35 100%)',
+    tabStrip:       'rgba(0,0,0,0.15)',
+    statusBar:      'rgba(0,0,0,0.18)',
+    border:         'rgba(255,255,255,0.08)',
+    borderSubtle:   'rgba(255,255,255,0.06)',
+    text:           '#ffffff',
+    textMuted:      'rgba(255,255,255,0.55)',
+    textDim:        'rgba(255,255,255,0.35)',
+    inputBg:        'rgba(255,255,255,0.07)',
+    inputBorder:    'rgba(255,255,255,0.10)',
+    cardBg:         'rgba(255,255,255,0.05)',
+    cardBorder:     'rgba(255,255,255,0.08)',
+    tabActive:      'rgba(255,255,255,0.10)',
+    tabActiveBorder:'rgba(255,255,255,0.12)',
+    menuBg:         '#15273d',
+    menuBorder:     'rgba(255,255,255,0.10)',
+    toggleBg:       'rgba(0,0,0,0.30)',
+    toggleBorder:   'rgba(255,255,255,0.12)',
+    accent:         '#F5A623',
+  },
+  light: {
+    bg:             'linear-gradient(135deg, #fde8ce 0%, #e8ede6 55%, #c6e2dc 100%)',
+    tabStrip:       'rgba(255,255,255,0.45)',
+    statusBar:      'rgba(255,255,255,0.40)',
+    border:         'rgba(0,0,0,0.09)',
+    borderSubtle:   'rgba(0,0,0,0.06)',
+    text:           '#1a2332',
+    textMuted:      'rgba(26,35,50,0.65)',
+    textDim:        'rgba(26,35,50,0.45)',
+    inputBg:        'rgba(255,255,255,0.92)',
+    inputBorder:    'rgba(0,0,0,0.12)',
+    cardBg:         'rgba(255,255,255,0.72)',
+    cardBorder:     'rgba(0,0,0,0.08)',
+    tabActive:      'rgba(255,255,255,0.92)',
+    tabActiveBorder:'rgba(0,0,0,0.12)',
+    menuBg:         '#ffffff',
+    menuBorder:     'rgba(0,0,0,0.12)',
+    toggleBg:       'rgba(0,0,0,0.06)',
+    toggleBorder:   'rgba(0,0,0,0.10)',
+    accent:         '#F5A623',
+  },
+} as const;
+
 type Theme = 'dark' | 'light' | 'system';
 
 interface ThemeContextType {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
+import { useTheme, THEMES } from '../contexts/ThemeContext';
 
 interface Shortcut {
   id: string;
@@ -26,8 +27,8 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const GithubIcon = () => (
-  <svg viewBox="0 0 24 24" style={SZ} fill="white">
+const GithubIcon = ({ color = 'white' }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" style={SZ} fill={color}>
     <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
   </svg>
 );
@@ -53,6 +54,8 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function Browse() {
+  const { resolvedTheme } = useTheme();
+  const T = THEMES[resolvedTheme];
   const [urlInput, setUrlInput] = useState('');
 
   const handleNavigate = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -90,13 +93,10 @@ export default function Browse() {
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={handleNavigate}
           placeholder="Enter URL"
-          className="w-full px-4 py-2.5 rounded-xl text-sm text-white/80 placeholder-white/30 outline-none transition-all"
-          style={{
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.12)',
-          }}
-          onFocus={(e) => (e.target.style.border = '1px solid rgba(245,166,35,0.5)')}
-          onBlur={(e)  => (e.target.style.border = '1px solid rgba(255,255,255,0.12)')}
+          className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+          style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, color: T.textMuted }}
+          onFocus={(e) => (e.target.style.borderColor = 'rgba(245,166,35,0.5)')}
+          onBlur={(e)  => (e.target.style.borderColor = T.inputBorder)}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -112,22 +112,21 @@ export default function Browse() {
           {DEFAULT_SHORTCUTS.map((s) => (
             <motion.button
               key={s.id}
-              whileHover={{ scale: 1.03, backgroundColor: 'rgba(255,255,255,0.1)' }}
+              whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => window.open(s.url, '_blank')}
               className="flex flex-col items-center justify-center py-4 rounded-2xl space-y-2 transition-colors"
-              style={{
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.09)',
-              }}
+              style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
             >
               <div
                 className="rounded-full flex items-center justify-center"
-                style={{ width: 34, height: 34, background: 'rgba(255,255,255,0.08)' }}
+                style={{ width: 34, height: 34, background: T.inputBg }}
               >
-                {ICONS[s.id]}
+                {s.id === 'github'
+                  ? <GithubIcon color={resolvedTheme === 'light' ? '#1a2332' : 'white'} />
+                  : ICONS[s.id]}
               </div>
-              <span className="text-white/65" style={{ fontSize: 12 }}>{s.label}</span>
+              <span style={{ fontSize: 12, color: T.textMuted }}>{s.label}</span>
             </motion.button>
           ))}
         </motion.div>
@@ -137,21 +136,18 @@ export default function Browse() {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
           className="flex flex-col items-center justify-center py-3 rounded-2xl space-y-1.5 w-full"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px dashed rgba(255,255,255,0.14)',
-          }}
+          style={{ background: T.cardBg, border: `1px dashed ${T.border}` }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
           <div
             className="rounded-full flex items-center justify-center"
-            style={{ width: 30, height: 30, background: 'rgba(255,255,255,0.07)' }}
+            style={{ width: 30, height: 30, background: T.inputBg }}
           >
-            <Plus style={{ width: 15, height: 15 }} className="text-white/45" />
+            <Plus style={{ width: 15, height: 15, color: T.textDim }} />
           </div>
-          <span className="text-white/35" style={{ fontSize: 12 }}>Add Shortcut</span>
+          <span style={{ fontSize: 12, color: T.textDim }}>Add Shortcut</span>
         </motion.button>
       </div>
 

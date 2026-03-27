@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Paperclip, Mic, Send } from 'lucide-react';
+import { useTheme, THEMES } from '../contexts/ThemeContext';
 
 const QUICK_COMMANDS = ['/ask', '/summarize', '/extract', '/explain'];
 
 export default function Home() {
+  const { resolvedTheme } = useTheme();
+  const T = THEMES[resolvedTheme];
   const [input, setInput] = useState('');
 
   const handleSend = () => {
@@ -43,22 +46,22 @@ export default function Home() {
         <div
           className="flex items-center space-x-2 rounded-2xl px-4 py-2.5 mb-2"
           style={{
-            background: 'rgba(10, 25, 50, 0.75)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: resolvedTheme === 'light' ? 'rgba(255,255,255,0.75)' : 'rgba(10,25,50,0.75)',
+            border: `1px solid ${T.inputBorder}`,
             backdropFilter: 'blur(16px)',
           }}
         >
-          <Paperclip style={{ width: 15, height: 15 }} className="text-white/35 flex-shrink-0 cursor-pointer hover:text-white/60 transition-colors" />
+          <Paperclip style={{ width: 15, height: 15, color: T.textDim }} className="flex-shrink-0 cursor-pointer transition-colors" />
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type message, enter link or /command..."
-            className="flex-1 bg-transparent text-white/75 placeholder-white/30 outline-none"
-            style={{ fontSize: 14 }}
+            className="flex-1 bg-transparent outline-none"
+            style={{ fontSize: 14, color: T.textMuted }}
           />
-          <button className="text-white/35 hover:text-white/60 transition-colors">
+          <button style={{ color: T.textDim }} className="transition-colors">
             <Mic style={{ width: 15, height: 15 }} />
           </button>
           <motion.button
@@ -78,11 +81,8 @@ export default function Home() {
             <button
               key={cmd}
               onClick={() => setInput(cmd + ' ')}
-              className="px-3 py-1 rounded-full text-xs text-white/55 hover:text-white/80 transition-all"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
+              className="px-3 py-1 rounded-full text-xs transition-all"
+              style={{ background: T.cardBg, border: `1px solid ${T.border}`, color: T.textMuted }}
             >
               {cmd}
             </button>

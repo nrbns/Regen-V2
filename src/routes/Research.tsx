@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Mic, Send, ChevronRight } from 'lucide-react';
+import { useTheme, THEMES } from '../contexts/ThemeContext';
 
 const FILTERS = ['All source', 'Papers', 'Web', 'Books', 'Datasets'];
 
@@ -56,6 +57,8 @@ const TOOLS = [
 ];
 
 export default function Research() {
+  const { resolvedTheme } = useTheme();
+  const T = THEMES[resolvedTheme];
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All source');
 
@@ -68,11 +71,8 @@ export default function Research() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="mb-2 ml-4 px-3 py-2 rounded-xl text-xs text-white/80 max-w-[130px]"
-          style={{
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.15)',
-          }}
+          className="mb-2 ml-4 px-3 py-2 rounded-xl text-xs max-w-[130px]"
+          style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}`, color: T.textMuted }}
         >
           Ask me to go deeper; I'll cross-check everything
         </motion.div>
@@ -98,22 +98,20 @@ export default function Research() {
           {/* Search bar */}
           <div
             className="flex items-center space-x-3 rounded-xl px-4 py-3"
-            style={{
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.12)',
-            }}
+            style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}` }}
           >
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Enter topic, paper URL, question, or dataset..."
-              className="flex-1 bg-transparent text-sm text-white/80 placeholder-white/30 outline-none"
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{ color: T.textMuted }}
             />
-            <button className="text-white/40 hover:text-white/70 transition-colors">
+            <button style={{ color: T.textDim }} className="transition-colors">
               <Upload style={{ width: 15, height: 15 }} />
             </button>
-            <button className="text-white/40 hover:text-white/70 transition-colors">
+            <button style={{ color: T.textDim }} className="transition-colors">
               <Mic style={{ width: 15, height: 15 }} />
             </button>
             <motion.button
@@ -136,7 +134,7 @@ export default function Research() {
                 style={
                   activeFilter === f
                     ? { background: 'rgba(245,166,35,0.2)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.4)' }
-                    : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
+                    : { background: T.cardBg, color: T.textMuted, border: `1px solid ${T.border}` }
                 }
               >
                 {f}
@@ -147,7 +145,7 @@ export default function Research() {
           {/* Section header */}
           <div className="flex items-center space-x-2 pt-1">
             <span style={{ color: '#F5A623' }}>✦</span>
-            <span className="text-sm font-medium text-white/80">Research Tools</span>
+            <span className="text-sm font-medium" style={{ color: T.textMuted }}>Research Tools</span>
           </div>
 
           {/* Tools grid */}
@@ -161,23 +159,19 @@ export default function Research() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className="flex flex-col p-4 rounded-2xl text-left transition-all group"
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
+                style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
               >
-                {/* Icon */}
                 <div
                   className="rounded-xl flex items-center justify-center mb-2.5"
                   style={{ width: 30, height: 30, background: tool.iconBg, fontSize: 15 }}
                 >
                   {tool.icon}
                 </div>
-                <div className="font-medium text-white/90 mb-1" style={{ fontSize: 12 }}>{tool.label}</div>
-                <div className="text-white/45 leading-relaxed flex-1" style={{ fontSize: 11 }}>{tool.desc}</div>
+                <div className="font-medium mb-1" style={{ fontSize: 12, color: T.text }}>{tool.label}</div>
+                <div className="leading-relaxed flex-1" style={{ fontSize: 11, color: T.textDim }}>{tool.desc}</div>
                 <div className="flex items-center justify-between mt-2.5">
-                  <span className="text-white/30" style={{ fontSize: 10 }}>{tool.items} items</span>
-                  <ChevronRight style={{ width: 13, height: 13 }} className="text-white/20 group-hover:text-white/50 transition-colors" />
+                  <span style={{ fontSize: 10, color: T.textDim }}>{tool.items} items</span>
+                  <ChevronRight style={{ width: 13, height: 13, color: T.textDim }} />
                 </div>
               </motion.button>
             ))}
