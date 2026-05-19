@@ -11,17 +11,17 @@ import {
   markBackendUnavailable,
 } from './backend-status';
 
-// API base URL configuration - defaults to backend server port (8000)
+// API base URL configuration - defaults to Regen redix server (4000)
 // Can be overridden via VITE_API_BASE_URL environment variable
 const API_BASE_URL =
   typeof window !== 'undefined'
     ? (window as any).__API_BASE_URL ||
       import.meta.env.VITE_API_BASE_URL ||
       import.meta.env.VITE_APP_API_URL ||
-      'http://127.0.0.1:8000' // Match backend server port
+      'http://127.0.0.1:4000'
     : import.meta.env.VITE_API_BASE_URL ||
       import.meta.env.VITE_APP_API_URL ||
-      'http://127.0.0.1:8000'; // Match backend server port
+      'http://127.0.0.1:4000';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';

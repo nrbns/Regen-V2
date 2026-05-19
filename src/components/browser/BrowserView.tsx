@@ -14,6 +14,8 @@ import { useSettingsStore } from '../../state/settingsStore';
 import { isTauriRuntime } from '../../lib/env';
 import { Loader2 } from 'lucide-react';
 import { NativeWebView } from './NativeWebView';
+import { SAFE_IFRAME_SANDBOX } from '../../config/security';
+import { isNewTabUrl, isSearchTabUrl } from '../../lib/browser/normalizeUrl';
 
 interface BrowserViewProps {
   tabId?: string; // Tab ID from Rust TabManager
@@ -22,6 +24,12 @@ interface BrowserViewProps {
   className?: string;
   onUrlChange?: (url: string) => void;
   onTitleChange?: (title: string) => void;
+}
+
+function iframeSrcForUrl(url: string | undefined | null): string {
+  const u = (url || '').trim();
+  if (!u || isNewTabUrl(u) || isSearchTabUrl(u)) return 'about:blank';
+  return u;
 }
 
 export default function BrowserView({
@@ -38,42 +46,47 @@ export default function BrowserView({
   const privacySettings = useSettingsStore(state => state.privacy);
   const privacyMode = privacySettings.trackerProtection && privacySettings.adBlockEnabled;
 
-  // Get active tab if tabId not provided
-  const activeTab = useTabsStore(state =>
-    tabId ? state.tabs.find(t => t.id === tabId) : state.tabs.find(t => t.active)
-  );
+  const activeTab = useTabsStore(state => {
+    if (tabId) return state.tabs.find(t => t.id === tabId) ?? null;
+    if (state.activeTabId) return state.tabs.find(t => t.id === state.activeTabId) ?? null;
+    return state.tabs[0] ?? null;
+  });
 
-  // Use tab URL if available, otherwise use prop URL
   const displayUrl = activeTab?.url || currentUrl;
   const displayTabId = tabId || activeTab?.id || 'default';
   const displayPrivacyMode = (activeTab?.mode || 'normal') as 'normal' | 'private' | 'ghost';
+  const frameSrc = iframeSrcForUrl(displayUrl);
 
-  // Update URL when prop changes
   useEffect(() => {
     if (url && url !== currentUrl) {
       setCurrentUrl(url);
     }
-  }, [url]);
+  }, [url, currentUrl]);
+
+  useEffect(() => {
+    setIsLoading(true);
+  }, [frameSrc, displayTabId]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
-    if (!iframe) return;
+    if (!iframe || frameSrc === 'about:blank') {
+      setIsLoading(false);
+      return;
+    }
 
-    // Handle navigation events
     const handleLoad = () => {
       setIsLoading(false);
       try {
-        const iframeUrl = iframe.contentWindow?.location.href || currentUrl;
-        if (iframeUrl && iframeUrl !== currentUrl) {
+        const iframeUrl = iframe.contentWindow?.location.href || displayUrl;
+        if (iframeUrl && iframeUrl !== 'about:blank' && iframeUrl !== currentUrl) {
           setCurrentUrl(iframeUrl);
           onUrlChange?.(iframeUrl);
         }
       } catch {
-        // Cross-origin - can't access URL, use currentUrl
+        onUrlChange?.(displayUrl);
       }
     };
 
-    // Handle title changes (for pages that allow it)
     const handleTitleChange = () => {
       try {
         const title = iframe.contentDocument?.title;
@@ -81,13 +94,12 @@ export default function BrowserView({
           onTitleChange?.(title);
         }
       } catch {
-        // Cross-origin - can't access document
+        /* cross-origin */
       }
     };
 
     iframe.addEventListener('load', handleLoad);
 
-    // Try to observe title changes (may not work for cross-origin)
     const observer = new MutationObserver(handleTitleChange);
     try {
       if (iframe.contentDocument) {
@@ -97,16 +109,16 @@ export default function BrowserView({
         });
       }
     } catch {
-      // Cross-origin - can't observe
+      /* cross-origin */
     }
 
     return () => {
       iframe.removeEventListener('load', handleLoad);
       observer.disconnect();
     };
-  }, [currentUrl, onUrlChange, onTitleChange]);
+  }, [frameSrc, displayUrl, currentUrl, onUrlChange, onTitleChange]);
 
-  // Build sandbox attributes based on mode and privacy
+  /** Stricter subset when privacy hardening is on; still allows normal sites to run. */
   const sandboxAttrs = privacyMode
     ? [
         'allow-same-origin',
@@ -116,25 +128,19 @@ export default function BrowserView({
         'allow-popups-to-escape-sandbox',
         'allow-modals',
         'allow-downloads',
-      ]
-    : [
-        'allow-same-origin',
-        'allow-scripts',
-        'allow-forms',
-        'allow-popups',
-        'allow-popups-to-escape-sandbox',
-        'allow-modals',
-        'allow-downloads',
-        'allow-top-navigation',
+        'allow-pointer-lock',
+        'allow-presentation',
+        'allow-orientation-lock',
+        'allow-storage-access-by-user-activation',
         'allow-top-navigation-by-user-activation',
-      ];
+      ]
+    : SAFE_IFRAME_SANDBOX.split(/\s+/).filter(Boolean);
 
-  // Use native WebView in Tauri, fallback to iframe in web
   if (isTauriRuntime()) {
     return (
       <NativeWebView
         tabId={displayTabId}
-        url={displayUrl}
+        url={iframeSrcForUrl(displayUrl) === 'about:blank' ? 'https://www.google.com' : displayUrl}
         className={className}
         privacyMode={displayPrivacyMode}
         onUrlChange={newUrl => {
@@ -148,14 +154,17 @@ export default function BrowserView({
     );
   }
 
-  // Fallback: iframe for non-Tauri environments (web dev/testing)
   const IframeContent = () => (
     <iframe
+      key={`${displayTabId}-${frameSrc}`}
       ref={iframeRef}
-      src={displayUrl}
+      data-tab-id={displayTabId}
+      title="Regen browse"
+      src={frameSrc}
       className="h-full w-full border-0"
       sandbox={sandboxAttrs.join(' ')}
-      allow="fullscreen; autoplay; camera; microphone; geolocation; payment; clipboard-read; clipboard-write; display-capture; storage-access"
+      referrerPolicy="strict-origin-when-cross-origin"
+      allow="fullscreen; autoplay; camera; microphone; geolocation; payment; clipboard-read; clipboard-write; display-capture; storage-access; accelerometer; gyroscope; magnetometer; midi; serial; usb; xr-spatial-tracking; screen-wake-lock; web-share"
       style={{ background: '#000' }}
       onLoad={() => setIsLoading(false)}
     />
@@ -168,16 +177,16 @@ export default function BrowserView({
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
             <div className="text-center">
               <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-400" />
-              <p className="mt-4 text-sm text-gray-400">Loading {displayUrl}...</p>
+              <p className="mt-4 text-sm text-gray-400">Loading {frameSrc}...</p>
             </div>
           </div>
         }
       >
-        {isLoading && (
+        {isLoading && frameSrc !== 'about:blank' && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
             <div className="text-center">
               <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-400" />
-              <p className="mt-4 text-sm text-gray-400">Loading {displayUrl}...</p>
+              <p className="mt-4 text-sm text-gray-400">Loading {frameSrc}...</p>
             </div>
           </div>
         )}

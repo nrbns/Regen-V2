@@ -26,7 +26,7 @@ export const CSP_DIRECTIVE = [
 // User requested: "explore every website"
 // Note: allow-storage-access is not a valid sandbox flag (use allow-storage-access-by-user-activation only)
 export const SAFE_IFRAME_SANDBOX =
-  'allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-modals allow-presentation allow-orientation-lock allow-pointer-lock allow-storage-access-by-user-activation';
+  'allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-modals allow-presentation allow-orientation-lock allow-storage-access-by-user-activation';
 
 export const TRUSTED_EXTENSION_URLS = [
   'regen://extensions',

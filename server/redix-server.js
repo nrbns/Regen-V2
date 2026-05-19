@@ -1845,6 +1845,15 @@ try {
   fastify.log.warn({ err: error }, 'Failed to register agent WebSocket server (optional)');
 }
 
+// Realtime execution WebSocket (/ws/execution)
+try {
+  const { initExecutionLayer } = require('./execution/index.cjs');
+  initExecutionLayer(fastify.server);
+  fastify.log.info('Execution WebSocket server registered at /ws/execution');
+} catch (error) {
+  fastify.log.warn({ err: error }, 'Failed to register execution WebSocket (optional)');
+}
+
 // Register browser automation API routes
 try {
   const { expressToFastify } = require('./utils/express-to-fastify.cjs');
@@ -2105,6 +2114,11 @@ fastify.post('/api/research/run', async (request, reply) => {
  */
 fastify.post('/api/search/hybrid', async (request, reply) => {
   return hybridSearch(request, reply);
+});
+
+fastify.get('/api/search/suggest', async (request, reply) => {
+  const { searchSuggest } = await import('./routes/search.js');
+  return searchSuggest(request, reply);
 });
 
 /**

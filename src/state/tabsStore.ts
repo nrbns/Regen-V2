@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isSearchTabUrl, getSearchQueryFromUrl } from '../lib/browser/normalizeUrl';
 
 // FIX: Global navigation confirmation listener (backend-owned navigation)
 if (typeof window !== 'undefined') {
@@ -201,6 +202,14 @@ export const useTabsStore = create<TabsState>()(
         // For now, simulate loading - actual navigation happens in iframe/webview
         setTimeout(() => {
           try {
+            if (isSearchTabUrl(url)) {
+              const q = getSearchQueryFromUrl(url);
+              get().updateTab(tabId, {
+                title: q ? `Search · ${q.slice(0, 48)}${q.length > 48 ? '…' : ''}` : 'Search',
+                isLoading: false,
+              });
+              return;
+            }
             const hostname = new URL(url).hostname;
             get().updateTab(tabId, {
               title: hostname || 'New Tab',

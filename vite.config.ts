@@ -246,7 +246,7 @@ export default defineConfig({
             "img-src 'self' data: https:; " +
             "style-src 'self' https:; " +
             "font-src 'self' https:; " +
-            "frame-src 'self' https:; " +
+            "frame-src 'self' http: https: data: blob: https://www.youtube.com https://www.youtube-nocookie.com; " +
             'media-src https:;'
           : "default-src 'self' https: data: blob:; " +
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
@@ -255,7 +255,7 @@ export default defineConfig({
             "style-src 'self' 'unsafe-inline' https://rsms.me https:; " +
             "style-src-elem 'self' 'unsafe-inline' https://rsms.me https:; " +
             "font-src 'self' https://rsms.me https:; " +
-            "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https:; " +
+            "frame-src 'self' http: https: data: blob: https://www.youtube.com https://www.youtube-nocookie.com; " +
             'media-src https;'
     },
   },

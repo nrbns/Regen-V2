@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme, THEMES } from '../contexts/ThemeContext';
+import { CompanionSettingsSection } from '../components/settings/CompanionSettingsSection';
 
 const NAV_ITEMS = [
   { id: 'account',         label: 'You & Account'       },
@@ -31,7 +32,7 @@ const CONTENT: Record<string, React.ReactNode> = {
   account: <AccountSection />,
   privacy:          <PlaceholderSection label="Privacy & Security" />,
   performance:      <PlaceholderSection label="Performance" />,
-  ai:               <PlaceholderSection label="AI Innovation" />,
+  ai:               <CompanionSettingsSection />,
   search:           <PlaceholderSection label="Search Engine" />,
   'default-browser':<PlaceholderSection label="Default Browser" />,
   startup:          <PlaceholderSection label="On Startup" />,

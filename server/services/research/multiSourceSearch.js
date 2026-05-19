@@ -295,55 +295,53 @@ function scoreAndRank(results, query, queryLang) {
  * @param {number} options.maxResults - Maximum number of results to return
  * @returns {Promise<SearchResult[]>}
  */
+function finalizeResults(allResults, query, queryLang, maxResults) {
+  const deduped = dedupeByUrl(allResults);
+  const ranked = scoreAndRank(deduped, query, queryLang);
+  return rerankResults(query, ranked, maxResults * 2).then((reranked) =>
+    reranked.slice(0, maxResults)
+  );
+}
+
+/**
+ * Tiered search: primary engines first, supplementary only if needed.
+ */
 export async function multiSourceSearch(query, options = {}) {
   const { lang = 'auto', maxResults = 8 } = options;
-
-  // Detect query language
   const detection = detectLanguage(query, lang);
   const queryLang = detection.language || 'en';
+  const minBeforeSupplement = Math.min(5, maxResults);
 
-  // Run searches in parallel - PRIORITIZE FREE SOURCES
-  // Brave Search (FREE - primary source)
-  // DuckDuckGo (FREE - fallback)
-  // Reddit, Wikipedia, arXiv (FREE - supplementary)
-  const [
-    braveResults,
-    ddgResults,
-    redditResults,
-    wikiResults,
-    arxivResults,
-    googleResults,
-    bingResults,
-  ] = await Promise.allSettled([
-    searchBrave(query, { lang: queryLang }), // PRIMARY: Free Brave Search
-    duckDuckGoSearch(query, { lang: queryLang }), // FREE fallback
-    redditSearch(query, { lang: queryLang }), // FREE
-    wikipediaSearch(query, { lang: queryLang }), // FREE
-    arxivSearch(query, { lang: queryLang }), // FREE
-    googleSearch(query, { lang: queryLang }), // Optional (requires API key)
-    bingSearch(query, { lang: queryLang }), // Optional (requires API key)
+  // Tier 1 — fast primary sources (Brave + DuckDuckGo)
+  const [braveResults, ddgResults] = await Promise.allSettled([
+    searchBrave(query, { lang: queryLang }),
+    duckDuckGoSearch(query, { lang: queryLang }),
   ]);
 
-  // Combine results - prioritize free sources
-  const allResults = [
-    ...(braveResults.status === 'fulfilled' ? braveResults.value : []), // Primary
-    ...(ddgResults.status === 'fulfilled' ? ddgResults.value : []), // Fallback
-    ...(redditResults.status === 'fulfilled' ? redditResults.value : []), // Supplementary
-    ...(wikiResults.status === 'fulfilled' ? wikiResults.value : []), // Supplementary
-    ...(arxivResults.status === 'fulfilled' ? arxivResults.value : []), // Supplementary
-    ...(googleResults.status === 'fulfilled' ? googleResults.value : []), // Optional
-    ...(bingResults.status === 'fulfilled' ? bingResults.value : []), // Optional
+  let allResults = [
+    ...(braveResults.status === 'fulfilled' ? braveResults.value : []),
+    ...(ddgResults.status === 'fulfilled' ? ddgResults.value : []),
   ];
 
-  // Deduplicate by URL
-  const deduped = dedupeByUrl(allResults);
+  if (dedupeByUrl(allResults).length >= minBeforeSupplement) {
+    return finalizeResults(allResults, query, queryLang, maxResults);
+  }
 
-  // Score and rank (basic scoring)
-  const ranked = scoreAndRank(deduped, query, queryLang);
+  // Tier 2 — supplementary (skip paid APIs unless keys are set)
+  const hasGoogle = !!(process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID);
+  const hasBing = !!process.env.BING_SEARCH_API_KEY;
+  const tier2Jobs = [
+    redditSearch(query, { lang: queryLang }),
+    wikipediaSearch(query, { lang: queryLang }),
+    arxivSearch(query, { lang: queryLang }),
+  ];
+  if (hasGoogle) tier2Jobs.push(googleSearch(query, { lang: queryLang }));
+  if (hasBing) tier2Jobs.push(bingSearch(query, { lang: queryLang }));
 
-  // Rerank using local reranker (improves quality)
-  const reranked = await rerankResults(query, ranked, maxResults * 2); // Get more for reranking
+  const tier2 = await Promise.allSettled(tier2Jobs);
+  for (const r of tier2) {
+    if (r.status === 'fulfilled') allResults = allResults.concat(r.value);
+  }
 
-  // Return top N results
-  return reranked.slice(0, maxResults);
+  return finalizeResults(allResults, query, queryLang, maxResults);
 }

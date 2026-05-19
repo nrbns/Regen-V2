@@ -2,6 +2,8 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ExecutionProvider } from './providers/ExecutionProvider';
+import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { initializeApp } from './lib/initialize-app';
 
 // Lazy load route components for better performance
@@ -22,6 +24,7 @@ const Video = React.lazy(() => import('./routes/Video'));
 const Watchers = React.lazy(() => import('./routes/Watchers'));
 const Workspace = React.lazy(() => import('./routes/Workspace'));
 const Research = React.lazy(() => import('./routes/Research'));
+const RegenBrowserShell = React.lazy(() => import('./components/BrowserShell/RegenBrowserShell'));
 
 // Loading fallback component
 function LoadingFallback() {
@@ -42,7 +45,9 @@ function AppContent() {
       <AppShell>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<RegenBrowserShell />} />
+            <Route path="/browser" element={<RegenBrowserShell />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/agent-console" element={<AgentConsole />} />
             <Route path="/task-runner" element={<TaskRunner />} />
@@ -60,7 +65,7 @@ function AppContent() {
             <Route path="/workspace" element={<Workspace />} />
             <Route path="/research" element={<Research />} />
             {/* Catch all route - redirect to home */}
-            <Route path="*" element={<Home />} />
+            <Route path="*" element={<RegenBrowserShell />} />
           </Routes>
         </Suspense>
       </AppShell>
@@ -81,7 +86,10 @@ export default function App() {
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="regen:theme">
-      <AppContent />
+      <ExecutionProvider>
+        <AppContent />
+        <OnboardingFlow />
+      </ExecutionProvider>
     </ThemeProvider>
   );
 }

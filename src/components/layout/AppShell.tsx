@@ -122,6 +122,11 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
   };
 
   const isFullPage = ['/history', '/downloads', '/settings'].includes(location.pathname);
+  const isShellRoute = location.pathname === '/' || location.pathname === '/browser';
+
+  if (isShellRoute) {
+    return <div className="h-screen w-screen overflow-hidden">{children}</div>;
+  }
 
   return (
     <div
