@@ -3,7 +3,6 @@ import { ModeManager } from '../core/modes/manager';
 import { MODES, isModeEnabled, type ModeId } from '../config/modes';
 import { toast } from '../utils/toast';
 import { layerManager } from '../core/layers/layerManager';
-
 export type AppState = {
   // Page AI Panel
   isPageAIPanelOpen: boolean;
@@ -115,14 +114,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       // If no tabs exist for this mode, create one with a default URL
       if (modeTabs.length === 0) {
         const defaultUrls: Record<AppState['mode'], string> = {
-          Browse: 'https://www.google.com',
-          Research: 'https://www.google.com',
+          Browse: 'https://duckduckgo.com/',
+          Research: 'https://duckduckgo.com/',
           Trade: 'https://www.tradingview.com',
           Knowledge: 'https://en.wikipedia.org',
           Dev: 'about:blank',
           Games: 'https://www.friv.com',
           Docs: 'about:blank',
-          Images: 'https://www.google.com/imghp',
+          Images: 'https://duckduckgo.com/?iax=images&ia=images',
           Threats: 'about:blank',
           GraphMind: 'about:blank',
         };

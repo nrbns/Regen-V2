@@ -4,7 +4,7 @@
 use omnibrowser_tauri::*;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::Manager;
+use tauri::{Emitter, Listener, Manager};
 
 fn main() {
     // Initialize stability features (before database, as they don't depend on it)
@@ -92,10 +92,30 @@ fn main() {
                 Duration::from_secs(5),  // Check every 5 seconds
                 Duration::from_secs(10), // 10 second timeout
             );
-            
+
+            // Forward backend/webview events to all UI windows (Tauri 2 Listener API)
+            let app_handle = app.handle().clone();
+            for event_name in [
+                "task:created",
+                "task:updated",
+                "task:log",
+                "thought:step",
+                "system:metrics",
+            ] {
+                let handle = app_handle.clone();
+                let name = event_name.to_string();
+                app_handle.listen(event_name, move |event| {
+                    let payload = event.payload();
+                    if !payload.is_empty() {
+                        let _ = handle.emit(name.as_str(), payload);
+                    }
+                });
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(tab_manager)
         .manage(app_state)
         .manage(privacy_enforcer)
@@ -151,6 +171,11 @@ fn main() {
             // Task system commands
             commands::run_demo_agent,
             commands::cancel_task,
+            // Avatar companion memory
+            commands::avatar_record_interaction,
+            commands::avatar_record_visit,
+            commands::avatar_get_smart_suggestions,
+            commands::extract_page_content,
             // Legacy commands
             commands::search,
             // Regen Backend IPC commands
@@ -164,46 +189,15 @@ fn main() {
             commands::run_ai,
             commands::download,
             commands::get_state,
+            // Embedded tab webviews (Google, GitHub, etc.)
+            browser_webview::browser_webview_upsert,
+            browser_webview::browser_webview_set_bounds,
+            browser_webview::browser_webview_set_visible,
+            browser_webview::browser_webview_close,
+            browser_webview::browser_webview_close_all,
+            browser_webview::browser_webview_hide_all_except,
+            browser_webview::browser_webview_extract_page,
         ])
-        .setup(move |app| {
-            // IPC Event Emitters - Forward backend events to UI
-            let app_handle = app.handle().clone();
-
-            // Task events
-            app.listen_global("task:created", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = app_handle.emit("task:created", payload);
-                }
-            });
-
-            app.listen_global("task:updated", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = app_handle.emit("task:updated", payload);
-                }
-            });
-
-            app.listen_global("task:log", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = app_handle.emit("task:log", payload);
-                }
-            });
-
-            // Thought stream events
-            app.listen_global("thought:step", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = app_handle.emit("thought:step", payload);
-                }
-            });
-
-            // System metrics events
-            app.listen_global("system:metrics", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = app_handle.emit("system:metrics", payload);
-                }
-            });
-
-            Ok(())
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

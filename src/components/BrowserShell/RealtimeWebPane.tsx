@@ -1,16 +1,28 @@
-import React, { memo, Suspense, lazy } from 'react';
+import React, { memo, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-
-const BrowserView = lazy(() => import('../browser/BrowserView'));
+import BrowserView from '../browser/BrowserView';
 
 type Props = {
   tabId: string;
   url: string;
   onUrlChange?: (url: string) => void;
   onTitleChange?: (title: string) => void;
+  onLoadFailed?: (message: string) => void;
+  onLoadEnd?: () => void;
+  preferIframe?: boolean;
+  visible?: boolean;
 };
 
-function RealtimeWebPaneInner({ tabId, url, onUrlChange, onTitleChange }: Props) {
+function RealtimeWebPaneInner({
+  tabId,
+  url,
+  onUrlChange,
+  onTitleChange,
+  onLoadFailed,
+  onLoadEnd,
+  preferIframe,
+  visible = true,
+}: Props) {
   return (
     <Suspense
       fallback={
@@ -23,9 +35,13 @@ function RealtimeWebPaneInner({ tabId, url, onUrlChange, onTitleChange }: Props)
         tabId={tabId}
         url={url}
         mode="browse"
-        className="w-full h-full"
+        className="h-full w-full min-h-0 flex-1"
         onUrlChange={onUrlChange}
         onTitleChange={onTitleChange}
+        onLoadFailed={onLoadFailed}
+        onLoadEnd={onLoadEnd}
+        preferIframe={preferIframe}
+        visible={visible}
       />
     </Suspense>
   );

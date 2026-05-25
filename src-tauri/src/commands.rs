@@ -832,3 +832,49 @@ pub async fn cancel_task(task_id: String) -> Result<TaskResponse, String> {
         error: None,
     })
 }
+
+// ============================================================================
+// AVATAR MEMORY (SQLite)
+// ============================================================================
+
+#[tauri::command]
+pub async fn avatar_record_interaction(
+    user_emotion: String,
+    suggestion: String,
+    user_accepted: bool,
+    time_to_respond: i64,
+    db: tauri::State<'_, Database>,
+) -> Result<(), String> {
+    db.record_avatar_interaction(&user_emotion, &suggestion, user_accepted, time_to_respond)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn avatar_record_visit(
+    url: String,
+    title: String,
+    time_spent: i64,
+    emotion: String,
+    db: tauri::State<'_, Database>,
+) -> Result<(), String> {
+    db.record_avatar_visit(&url, &title, time_spent, &emotion)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn avatar_get_smart_suggestions(
+    limit: Option<i64>,
+    db: tauri::State<'_, Database>,
+) -> Result<Vec<String>, String> {
+    db.get_top_avatar_suggestions(limit.unwrap_or(3))
+        .map_err(|e| e.to_string())
+}
+
+/// Legacy name used by PageSummarizer — delegates to tab webview extract.
+#[tauri::command]
+pub async fn extract_page_content(
+    tab_id: String,
+    parent: tauri::WebviewWindow,
+) -> Result<crate::browser_webview::PageSnippetPayload, String> {
+    crate::browser_webview::browser_webview_extract_page(parent, tab_id).await
+}

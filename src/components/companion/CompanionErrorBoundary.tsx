@@ -17,7 +17,13 @@ export class CompanionErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.failed) return null;
+    if (this.state.failed) {
+      return (
+        <div className="flex h-full min-h-[120px] items-center justify-center p-4 text-center text-sm text-amber-200/90">
+          Companion UI failed to load (see console).
+        </div>
+      );
+    }
     return this.props.children;
   }
 }

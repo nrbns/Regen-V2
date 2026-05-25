@@ -1,6 +1,7 @@
 import { loadCompanionConfig } from '../companion/companionConfig';
 import { companionDebug } from '../companion/companionDebug';
 import { setAvatarEmotion } from '../companion/avatarBridge';
+import { speakWithEmotion, type VoiceEmotion } from './voiceEmotion';
 
 export interface VoiceHandlerOptions {
   onTranscript?: (text: string, language: string, isFinal: boolean) => void;
@@ -121,9 +122,13 @@ export class VoiceHandler {
     companionDebug.patch({ voiceListening: false });
   }
 
-  speak(text: string, lang = 'en-US'): void {
+  speak(text: string, lang = 'en-US', emotion?: VoiceEmotion): void {
     if (!loadCompanionConfig().voiceEnabled || typeof window === 'undefined') return;
     if (!('speechSynthesis' in window)) return;
+    if (emotion) {
+      speakWithEmotion(text, { emotion, lang });
+      return;
+    }
     setAvatarEmotion('speaking');
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);

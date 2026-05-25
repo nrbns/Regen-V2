@@ -21,11 +21,15 @@ export const getEnvVar = (key: string): string | undefined => {
 };
 
 /**
- * Check if running in Tauri runtime
+ * Check if running in Tauri runtime (desktop shell).
  */
 export function isTauriRuntime(): boolean {
+  // Lazy import avoids circular deps; inline same checks as isTauriShell
   if (typeof window === 'undefined') return false;
-  return typeof (window as any).__TAURI__ !== 'undefined';
+  const w = window as Window & { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown };
+  if (w.__TAURI__ !== undefined || w.__TAURI_INTERNALS__ !== undefined) return true;
+  const env = import.meta.env as Record<string, string | boolean | undefined>;
+  return !!(env.TAURI_ENV_PLATFORM || env.TAURI_PLATFORM || env.TAURI_ARCH);
 }
 
 /**

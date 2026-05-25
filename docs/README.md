@@ -29,6 +29,13 @@ This directory contains all documentation for the Regen Browser project, organiz
 * `REALTIME_IMPLEMENTATION_COMPLETE.md` - Real-time architecture implementation
 * `REALTIME_SUMMARY.md` - Real-time architecture summary
 
+### AI Avatar Companion
+* `COMPLETE_AI_AVATAR_SYSTEM.md` - Architecture, vision, implementation map
+* `AI_AVATAR_CURSOR_GUIDE.md` - Phased build guide + testing checklist
+* `AVATAR_IMPLEMENTATION.md` - UI component + emotion API
+* `LAUNCH_DEMO_TODAY.md` - 30-minute demo launch checklist
+* `index.html` - GitHub Pages landing (https://nrbns.github.io/Regen-V2/)
+
 ### `/user-guides/` - User-Facing Documentation
 * `BUILD_AND_RUN.md` - Build and run instructions for users
 

@@ -1,0 +1,6 @@
+{
+  "githubOwner": "nrbns",
+  "githubRepo": "Regen-V2",
+  "productName": "Regen Browser",
+  "updateEndpoint": "https://github.com/nrbns/Regen-V2/releases/latest/download/latest.json"
+}

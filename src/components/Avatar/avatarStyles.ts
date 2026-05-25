@@ -1,10 +1,12 @@
 import type { AvatarEmotion } from '../../lib/companion/companionConfig';
 
-export type AvatarMode = 'general' | 'research' | 'onboarding' | 'settings' | 'compact';
+export type AvatarMode = 'general' | 'research' | 'mini' | 'onboarding' | 'settings' | 'compact';
 
 export const AVATAR_SIZES: Record<AvatarMode, { width: number; height: number }> = {
   general: { width: 280, height: 360 },
   research: { width: 160, height: 200 },
+  /** Scaled layout only — same character-half.png artwork */
+  mini: { width: 120, height: 154 },
   onboarding: { width: 200, height: 250 },
   settings: { width: 140, height: 140 },
   compact: { width: 48, height: 48 },
@@ -17,6 +19,15 @@ export const EMOTION_COLORS: Record<AvatarEmotion, string> = {
   speaking: '#F0A030',
   noticing: '#EF9F27',
   happy: '#4A9960',
+};
+
+export const EMOTION_LABELS: Record<AvatarEmotion, string> = {
+  idle: 'Here with you',
+  listening: 'Listening…',
+  thinking: 'Thinking…',
+  speaking: 'Speaking…',
+  noticing: 'Noticing…',
+  happy: 'Page ready',
 };
 
 export const EMOTION_GLOW: Record<AvatarEmotion, string> = {
@@ -50,10 +61,19 @@ export const AVATAR_CSS = `
   0%, 100% { transform: scale(1); opacity: 0.9; }
   50% { transform: scale(1.12); opacity: 1; }
 }
+@keyframes regen-avatar-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.015); }
+}
+@keyframes regen-avatar-lean {
+  0%, 100% { transform: rotate(0deg) scale(1.02); }
+  50% { transform: rotate(-2deg) scale(1.04); }
+}
 .regen-avatar-wrap { will-change: transform, opacity; }
+.regen-avatar-img--idle { animation: regen-avatar-breathe 4s ease-in-out infinite; }
 .regen-avatar-img--listening { animation: regen-avatar-bob 1.5s ease-in-out infinite; }
 .regen-avatar-img--thinking { animation: regen-avatar-pulse 2s ease-in-out infinite; }
 .regen-avatar-img--speaking { animation: regen-avatar-bob 1s ease-in-out infinite; }
 .regen-avatar-img--happy { animation: regen-avatar-jump 0.6s ease-out; }
-.regen-avatar-img--noticing { transform: scale(1.02); }
+.regen-avatar-img--noticing { animation: regen-avatar-lean 1.8s ease-in-out infinite; }
 `;

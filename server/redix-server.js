@@ -98,6 +98,11 @@ process.on('uncaughtException', err => {
     // Silently ignore Redis connection errors
     return;
   }
+  // Dev: port 4000 already bound by another Regen/API instance
+  if (err?.code === 'EADDRINUSE' && process.env.NODE_ENV !== 'production') {
+    console.warn('[Redix] Port already in use — reusing existing API (dev)');
+    return;
+  }
   // Log other errors
   console.error('[FATAL] Uncaught exception in Redix server:', err);
   // In dev, log only - don't exit
@@ -1845,14 +1850,7 @@ try {
   fastify.log.warn({ err: error }, 'Failed to register agent WebSocket server (optional)');
 }
 
-// Realtime execution WebSocket (/ws/execution)
-try {
-  const { initExecutionLayer } = require('./execution/index.cjs');
-  initExecutionLayer(fastify.server);
-  fastify.log.info('Execution WebSocket server registered at /ws/execution');
-} catch (error) {
-  fastify.log.warn({ err: error }, 'Failed to register execution WebSocket (optional)');
-}
+// Realtime execution WebSocket — registered after listen (see startup IIFE below)
 
 // Register browser automation API routes
 try {
@@ -4663,6 +4661,15 @@ fastify.get('/metrics/prom', async (_request, reply) => {
   try {
     if (enableWebSockets) {
       await fastify.register(websocketPlugin);
+      try {
+        const { createRequire } = await import('module');
+        const requireMod = createRequire(import.meta.url);
+        const { registerExecutionWebSocket } = requireMod('./execution/fastify-execution-ws.cjs');
+        registerExecutionWebSocket(fastify);
+        fastify.log.info('Execution WebSocket route registered at /ws/execution');
+      } catch (e) {
+        fastify.log.warn({ err: e, message: e?.message }, 'Failed to register /ws/execution route');
+      }
     }
     // Initialize WebSocket server before listening
     const httpServer = fastify.server;
@@ -5024,7 +5031,18 @@ fastify.get('/metrics/prom', async (_request, reply) => {
         );
       }
 
-      await fastify.listen({ port: PORT, host: '0.0.0.0' });
+      try {
+        await fastify.listen({ port: PORT, host: '0.0.0.0' });
+      } catch (listenErr) {
+        if (listenErr?.code === 'EADDRINUSE' && process.env.NODE_ENV !== 'production') {
+          fastify.log.warn(
+            { port: PORT },
+            'Port already in use — reusing existing API (dev only)'
+          );
+          return;
+        }
+        throw listenErr;
+      }
       fastify.log.info(`Redix server listening on port ${PORT}`);
 
       // Initialize Orchestrator WebSocket on the underlying Node server
@@ -5034,6 +5052,7 @@ fastify.get('/metrics/prom', async (_request, reply) => {
       } catch (e) {
         fastify.log.warn({ err: e }, 'Failed to initialize Orchestrator WebSocket');
       }
+
     } catch (err) {
       console.error('[Redix Server] Failed to start:', err);
       console.error('[Redix Server] Error message:', err?.message);

@@ -2,6 +2,8 @@
 
 The 3D character uses `/images/character-half.png` (CSS animations only — no JS animation loops).
 
+**Browser shell policy:** All in-browser companion UI must use `BROWSER_AVATAR_SRC` from `avatarAssets.ts` with `lockBrowserArtwork` — do not swap for icons, SVG, or other art in `RegenBrowserShell`.
+
 ## Component
 
 `src/components/Avatar/AvatarCompanion.tsx`
@@ -16,7 +18,18 @@ The 3D character uses `/images/character-half.png` (CSS animations only — no J
 
 ## Emotions
 
-`idle` · `listening` · `thinking` · `speaking` · `noticing` · `happy`
+`idle` · `listening` · `thinking` · `speaking` · `noticing` · `happy` · `concerned` · `excited` · `curious` · `calm`
+
+## AI avatar system (automated)
+
+Boot: `initializeAvatarSystem()` from app init.
+
+| Module | Path |
+|--------|------|
+| Emotion + loop | `src/lib/emotion/`, `src/lib/automation/automationLoop.ts` |
+| Page snippets | `src/lib/browser/fetchPageSnippet.ts`, Rust `browser_webview_extract_page` |
+| Learning | `src/lib/memory/memorySystem.ts`, SQLite `avatar_*` commands |
+| Docs | `docs/COMPLETE_AI_AVATAR_SYSTEM.md`, `docs/AI_AVATAR_CURSOR_GUIDE.md` |
 
 ```ts
 window.avatarCompanion?.updateEmotion('thinking');

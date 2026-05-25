@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { isSearchTabUrl, getSearchQueryFromUrl } from '../lib/browser/normalizeUrl';
+import { isSearchTabUrl, getSearchQueryFromUrl, isNewTabUrl, NEWTAB } from '../lib/browser/normalizeUrl';
 
 // FIX: Global navigation confirmation listener (backend-owned navigation)
 if (typeof window !== 'undefined') {
@@ -71,29 +71,29 @@ export const useTabsStore = create<TabsState>()(
         activeTabId: null,
 
       addTab: (url = '') => {
+        const tabUrl = url && url !== NEWTAB && !isNewTabUrl(url) ? url : NEWTAB;
         const newTab: Tab = {
           id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          url,
-          title: url || 'New Tab',
+          url: tabUrl,
+          title: 'New Tab',
           isLoading: false,
+          lastActiveAt: Date.now(),
+          createdAt: Date.now(),
         };
 
         set((state) => {
-          const newTabs = [...state.tabs, newTab];
-          const newActiveTabId = state.tabs.length === 0 ? newTab.id : state.activeTabId;
-          
           // Emit event for real-time AI observation
           if (typeof window !== 'undefined') {
             import('../lib/events/EventBus').then(({ emitTabOpen }) => {
-              emitTabOpen(newTab.id, url);
+              emitTabOpen(newTab.id, tabUrl);
             }).catch(() => {
               // EventBus not available - graceful degradation
             });
           }
-          
+
           return {
-            tabs: newTabs,
-            activeTabId: newActiveTabId,
+            tabs: [...state.tabs, newTab],
+            activeTabId: newTab.id,
           };
         });
       },
@@ -132,6 +132,10 @@ export const useTabsStore = create<TabsState>()(
 
       switchTab: (tabId: string) => {
         set((state) => {
+          if (!state.tabs.some((t) => t.id === tabId)) {
+            return state;
+          }
+
           // Emit event for real-time AI observation
           if (typeof window !== 'undefined' && state.activeTabId !== tabId) {
             import('../lib/events/EventBus').then(({ emitTabSwitch }) => {
@@ -140,8 +144,14 @@ export const useTabsStore = create<TabsState>()(
               // EventBus not available - graceful degradation
             });
           }
-          
-          return { activeTabId: tabId };
+
+          const now = Date.now();
+          return {
+            activeTabId: tabId,
+            tabs: state.tabs.map((t) =>
+              t.id === tabId ? { ...t, lastActiveAt: now } : t
+            ),
+          };
         });
       },
 
@@ -239,9 +249,18 @@ export const useTabsStore = create<TabsState>()(
     {
       name: 'regen-tabs',
       partialize: (state) => ({
-        tabs: state.tabs.map(tab => ({ ...tab, isLoading: false })), // Don't persist loading state
+        tabs: state.tabs.map(tab => ({ ...tab, isLoading: false })),
         activeTabId: state.activeTabId,
       }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<TabsState> | undefined;
+        if (!p?.tabs?.length) return current as TabsState;
+        const activeTabId =
+          p.activeTabId && p.tabs.some((t) => t.id === p.activeTabId)
+            ? p.activeTabId
+            : p.tabs[0].id;
+        return { ...(current as TabsState), ...p, tabs: p.tabs, activeTabId };
+      },
     }
   )
 );

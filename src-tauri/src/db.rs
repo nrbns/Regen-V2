@@ -140,6 +140,30 @@ impl Database {
             [],
         )?;
 
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS avatar_interactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_emotion TEXT NOT NULL,
+                suggestion TEXT NOT NULL,
+                user_accepted INTEGER NOT NULL,
+                time_to_respond INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS avatar_visits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL,
+                title TEXT,
+                time_spent INTEGER NOT NULL DEFAULT 0,
+                emotion TEXT,
+                created_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
         // Create indexes for performance
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_pages_url ON pages(url)",
@@ -492,5 +516,62 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM bookmarks WHERE id = ?1", params![id])?;
         Ok(())
+    }
+
+    pub fn record_avatar_interaction(
+        &self,
+        user_emotion: &str,
+        suggestion: &str,
+        user_accepted: bool,
+        time_to_respond: i64,
+    ) -> SqliteResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Utc::now().timestamp();
+        conn.execute(
+            "INSERT INTO avatar_interactions (user_emotion, suggestion, user_accepted, time_to_respond, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                user_emotion,
+                suggestion,
+                if user_accepted { 1 } else { 0 },
+                time_to_respond,
+                now
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn record_avatar_visit(
+        &self,
+        url: &str,
+        title: &str,
+        time_spent: i64,
+        emotion: &str,
+    ) -> SqliteResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Utc::now().timestamp();
+        conn.execute(
+            "INSERT INTO avatar_visits (url, title, time_spent, emotion, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![url, title, time_spent, emotion, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_top_avatar_suggestions(&self, limit: i64) -> SqliteResult<Vec<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT suggestion, COUNT(*) AS c FROM avatar_interactions
+             WHERE user_accepted = 1
+             GROUP BY suggestion
+             ORDER BY c DESC
+             LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| row.get(0))?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
     }
 }

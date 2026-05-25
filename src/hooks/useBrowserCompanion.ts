@@ -8,6 +8,7 @@ import { companionDebug } from '../lib/companion/companionDebug';
 import { useTabsStore } from '../state/tabsStore';
 import { useExecutionStore } from '../state/executionStore';
 import { isTauriRuntime } from '../lib/env';
+import { setCompanionEmotion } from '../lib/companion/avatarBridge';
 
 export function useBrowserCompanion() {
   const voiceRef = useRef<VoiceHandler | null>(null);
@@ -79,6 +80,7 @@ export function useBrowserCompanion() {
   const sendMessage = useCallback(async (text: string, lang = 'en') => {
     if (!text.trim()) return;
     messagesRef.current?.addUser(text);
+    setCompanionEmotion('thinking');
     const { tabs, activeTabId } = useTabsStore.getState();
     const tab = tabs.find((t) => t.id === activeTabId);
     getExecutionClient().execute(text, { url: tab?.url || undefined, tabId: tab?.id });
@@ -94,6 +96,7 @@ export function useBrowserCompanion() {
       startTransition(() => {
         setStreamText('');
         messagesRef.current?.addRegen(reply);
+        setCompanionEmotion('happy', { revertMs: 1500, revertTo: 'idle' });
       });
       if (loadCompanionConfig().voiceEnabled) {
         voiceRef.current?.speak(reply, lang);
@@ -139,11 +142,13 @@ export function useBrowserCompanion() {
   const startListening = useCallback(() => {
     if (!VoiceHandler.isSupported()) return;
     setIsListening(true);
+    setCompanionEmotion('listening');
     voiceRef.current?.startListening();
   }, []);
 
   const stopListening = useCallback(() => {
     setIsListening(false);
+    setCompanionEmotion('thinking', { revertMs: 800, revertTo: 'idle' });
     voiceRef.current?.stopListening();
   }, []);
 

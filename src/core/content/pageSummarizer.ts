@@ -20,10 +20,20 @@ export class PageSummarizer {
   static async extractPageContent(tabId: string): Promise<PageContent> {
     try {
       // Inject content script to extract page content
-      const result = await (window as any).__TAURI__?.invoke('extract_page_content', { tabId });
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { isTauriShell } = await import('../../lib/tauri/runtime');
+      if (!isTauriShell()) throw new Error('not-tauri');
+      const result = await invoke<{ tab_id: string; url: string; title: string; text: string }>(
+        'extract_page_content',
+        { tabId }
+      );
 
-      if (result) {
-        return result;
+      if (result?.text) {
+        return {
+          url: result.url,
+          title: result.title,
+          text: result.text,
+        };
       }
 
       // Fallback: extract from current window

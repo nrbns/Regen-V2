@@ -1,6 +1,17 @@
-export type AvatarEmotion = 'idle' | 'listening' | 'thinking' | 'speaking' | 'noticing' | 'happy';
+export type AvatarEmotion =
+  | 'idle'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'noticing'
+  | 'happy'
+  | 'concerned'
+  | 'excited'
+  | 'curious'
+  | 'calm';
 
 export interface CompanionConfig {
+  avatarAutomationEnabled: boolean;
   visionEnabled: boolean;
   voiceEnabled: boolean;
   ttsVoiceGender: 'default' | 'male' | 'female';
@@ -14,6 +25,7 @@ export interface CompanionConfig {
 const KEY = 'regen:companion:config';
 
 const DEFAULTS: CompanionConfig = {
+  avatarAutomationEnabled: true,
   visionEnabled: true,
   voiceEnabled: true,
   ttsVoiceGender: 'default',

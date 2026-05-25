@@ -2,6 +2,7 @@ import { loadCompanionConfig } from '../companion/companionConfig';
 import { companionDebug } from '../companion/companionDebug';
 import { setAvatarEmotion } from '../companion/avatarBridge';
 import { isTauriRuntime } from '../env';
+import { getVisionIntervalMs } from '../optimization/lowRamMode';
 
 export interface VisionProcessorOptions {
   onDescription?: (text: string, language: string) => void;
@@ -57,7 +58,8 @@ export class VisionProcessor {
   startWatching(): void {
     if (!loadCompanionConfig().visionEnabled) return;
     this.stopWatching();
-    const ms = loadCompanionConfig().visionIntervalMs;
+    const base = loadCompanionConfig().visionIntervalMs;
+    const ms = getVisionIntervalMs(base);
     this.intervalId = setInterval(() => {
       if (typeof requestIdleCallback !== 'undefined') {
         requestIdleCallback(() => void this.tick(), { timeout: 2000 });

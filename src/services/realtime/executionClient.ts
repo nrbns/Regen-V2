@@ -17,6 +17,7 @@ class ExecutionClient {
   private handlers = new Set<Handler>();
   private sessionId = `regen-${Date.now()}`;
   private reconnect: ReturnType<typeof setTimeout> | null = null;
+  private failCount = 0;
   connected = false;
 
   on(handler: Handler) {
@@ -27,9 +28,11 @@ class ExecutionClient {
   }
 
   connect() {
+    if (this.failCount >= 8) return;
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
     this.ws = new WebSocket(`${wsUrl()}?sessionId=${encodeURIComponent(this.sessionId)}`);
     this.ws.onopen = () => {
+      this.failCount = 0;
       this.connected = true;
       this.handlers.forEach((h) => h({ type: 'system:connected' }));
     };
@@ -44,12 +47,15 @@ class ExecutionClient {
     this.ws.onclose = () => {
       this.connected = false;
       this.handlers.forEach((h) => h({ type: 'system:disconnected' }));
-      if (!this.reconnect) {
-        this.reconnect = setTimeout(() => {
-          this.reconnect = null;
-          this.connect();
-        }, PERF.wsReconnectMs);
-      }
+      this.failCount += 1;
+      if (this.failCount >= 8 || this.reconnect) return;
+      this.reconnect = setTimeout(() => {
+        this.reconnect = null;
+        this.connect();
+      }, PERF.wsReconnectMs);
+    };
+    this.ws.onerror = () => {
+      this.failCount += 1;
     };
   }
 

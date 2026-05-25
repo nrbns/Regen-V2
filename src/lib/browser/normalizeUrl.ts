@@ -1,4 +1,4 @@
-const NEWTAB = 'regen://newtab';
+export const NEWTAB = 'regen://newtab';
 const SEARCH_TAB = 'regen://search';
 
 export type InputKind = 'newtab' | 'url' | 'search';
@@ -34,17 +34,37 @@ export function getSearchQueryFromUrl(url: string): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-export function normalizeUrl(input: string): string {
+/** Google search URL (real browser — works in Tauri native webview). */
+export function googleSearchUrl(query: string): string {
+  const q = query.trim();
+  if (!q) return 'https://www.google.com/';
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+}
+
+export type NormalizeUrlOptions = {
+  /** Use regen://search in-app results pane (web-only). Default false in Tauri. */
+  embeddedSearch?: boolean;
+};
+
+export function normalizeUrl(input: string, opts?: NormalizeUrlOptions): string {
   const raw = input.trim();
   if (!raw || raw === NEWTAB) return NEWTAB;
-  if (/^regen:\/\//i.test(raw)) return raw;
+  if (/^regen:\/\//i.test(raw)) {
+    if (isSearchTabUrl(raw) && !opts?.embeddedSearch) {
+      const q = getSearchQueryFromUrl(raw);
+      return q ? googleSearchUrl(q) : 'https://www.google.com/';
+    }
+    return raw;
+  }
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/^localhost(:\d+)?(\/|$)/i.test(raw)) return `http://${raw}`;
-  if (classifyInput(raw) === 'search') return searchTabUrl(raw);
+  if (classifyInput(raw) === 'search') {
+    return opts?.embeddedSearch ? searchTabUrl(raw) : googleSearchUrl(raw);
+  }
   if (/^[\w-]+(\.[\w-]+)+/.test(raw) && !raw.includes(' ')) {
     return `https://${raw}`;
   }
-  return searchTabUrl(raw);
+  return opts?.embeddedSearch ? searchTabUrl(raw) : googleSearchUrl(raw);
 }
 
 export function isNewTabUrl(url: string | undefined | null): boolean {
@@ -56,5 +76,3 @@ export function displayUrlBar(url: string): string {
   if (isSearchTabUrl(url)) return getSearchQueryFromUrl(url) ?? '';
   return url.replace(/^https?:\/\//i, '');
 }
-
-export { NEWTAB, SEARCH_TAB };

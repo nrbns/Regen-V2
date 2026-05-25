@@ -2,7 +2,32 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+/** Real @tauri-apps/api when building/serving for the desktop shell (not web-only dev). */
+const isTauriShell =
+  !!process.env.TAURI_ENV_PLATFORM ||
+  process.env.REGEN_TAURI === '1' ||
+  process.env.TAURI === 'true';
+
+const tauriShimAliases = isTauriShell
+  ? {}
+  : {
+      '@tauri-apps/api/core': resolve(__dirname, './src/shims/tauri.ts'),
+      '@tauri-apps/api/event': resolve(__dirname, './src/shims/tauri.ts'),
+      '@tauri-apps/api/updater': resolve(__dirname, './src/shims/tauri.ts'),
+      '@tauri-apps/api': resolve(__dirname, './src/shims/tauri.ts'),
+    };
+
+const tauriEnvDefine = isTauriShell
+  ? {
+      'import.meta.env.TAURI_ENV_PLATFORM': JSON.stringify(
+        process.env.TAURI_ENV_PLATFORM || 'windows'
+      ),
+      'import.meta.env.TAURI_ARCH': JSON.stringify(process.env.TAURI_ARCH || 'x86_64'),
+    }
+  : {};
+
 export default defineConfig({
+  define: tauriEnvDefine,
   plugins: [
     react({
       // Fast Refresh is enabled by default in @vitejs/plugin-react
@@ -35,11 +60,7 @@ export default defineConfig({
       bufferutil: resolve(__dirname, './stubs/bufferutil-stub/index.js'),
       'utf-8-validate': resolve(__dirname, './stubs/utf-8-validate-stub/index.js'),
       './xhr-sync-worker.js': resolve(__dirname, './stubs/xhr-sync-worker.js'),
-      // Tauri neutralization: point to browser-safe shim to prevent native API usage
-      '@tauri-apps/api/core': resolve(__dirname, './src/shims/tauri.ts'),
-      '@tauri-apps/api/event': resolve(__dirname, './src/shims/tauri.ts'),
-      '@tauri-apps/api/updater': resolve(__dirname, './src/shims/tauri.ts'), // Optional updater plugin
-      '@tauri-apps/api': resolve(__dirname, './src/shims/tauri.ts'),
+      ...tauriShimAliases,
     },
   },
   root: resolve(__dirname),

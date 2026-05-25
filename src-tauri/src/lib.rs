@@ -10,6 +10,7 @@ pub mod ai;
 pub mod agent;
 pub mod tor;
 pub mod commands;
+pub mod browser_webview;
 pub mod stability;
 
 // Service modules

@@ -50,4 +50,8 @@ export const companionDebug = {
     if (import.meta.env.DEV) console.debug('[Companion]', msg);
     notify();
   },
+  trim: () => {
+    state = { ...state, logs: state.logs.slice(-30) };
+    notify();
+  },
 };

@@ -1,197 +1,149 @@
 /**
- * Unified BrowserView Component
- * Real web browser engine for all modes (Browse, Research, Trade)
- * Uses native Tauri WebView (if available) or falls back to iframes
- *
- * Architecture:
- * - In Tauri: Uses native WebView instances (better performance, isolation)
- * - In web: Falls back to iframes (for development/testing)
+ * BrowserView — Tauri: native webview (Google, GitHub, etc.). Web / fallback: iframe (no sandbox).
  */
 
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTabsStore } from '../../state/tabsStore';
-import { useSettingsStore } from '../../state/settingsStore';
-import { isTauriRuntime } from '../../lib/env';
-import { Loader2 } from 'lucide-react';
+import { isTauriShell } from '../../lib/tauri/runtime';
+import { preferIframeBrowser } from '../../lib/browser/preferIframe';
+import { resolveBrowseUrl } from '../../lib/browser/resolveBrowseUrl';
+import { setCompanionEmotion } from '../../lib/companion/avatarBridge';
+import { eventBus } from '../../lib/events/EventBus';
 import { NativeWebView } from './NativeWebView';
-import { SAFE_IFRAME_SANDBOX } from '../../config/security';
-import { isNewTabUrl, isSearchTabUrl } from '../../lib/browser/normalizeUrl';
+import { IframeBrowsePane } from './IframeBrowsePane';
 
 interface BrowserViewProps {
-  tabId?: string; // Tab ID from Rust TabManager
+  tabId?: string;
   url?: string;
   mode?: 'browse' | 'research' | 'trade';
   className?: string;
   onUrlChange?: (url: string) => void;
   onTitleChange?: (title: string) => void;
+  onLoadFailed?: (message: string) => void;
+  onLoadEnd?: () => void;
+  /** Force iframe instead of Tauri native webview (testing). */
+  preferIframe?: boolean;
+  /** When false, native webview is hidden (multi-tab stack). */
+  visible?: boolean;
 }
 
-function iframeSrcForUrl(url: string | undefined | null): string {
-  const u = (url || '').trim();
-  if (!u || isNewTabUrl(u) || isSearchTabUrl(u)) return 'about:blank';
-  return u;
+export { resolveBrowseUrl } from '../../lib/browser/resolveBrowseUrl';
+
+export function nativeWebviewUrl(url: string | undefined | null): string {
+  return resolveBrowseUrl(url);
 }
 
 export default function BrowserView({
   tabId,
   url,
   mode: _mode = 'browse',
-  className = 'w-full h-full',
+  className = 'w-full h-full min-h-0',
   onUrlChange,
   onTitleChange,
+  onLoadFailed,
+  onLoadEnd,
+  preferIframe: preferIframeProp,
+  visible = true,
 }: BrowserViewProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [currentUrl, setCurrentUrl] = useState(url || 'https://www.google.com');
-  const [isLoading, setIsLoading] = useState(true);
-  const privacySettings = useSettingsStore(state => state.privacy);
-  const privacyMode = privacySettings.trackerProtection && privacySettings.adBlockEnabled;
+  const [nativeFailed, setNativeFailed] = useState(false);
+  const updateTab = useTabsStore((s) => s.updateTab);
 
-  const activeTab = useTabsStore(state => {
-    if (tabId) return state.tabs.find(t => t.id === tabId) ?? null;
-    if (state.activeTabId) return state.tabs.find(t => t.id === state.activeTabId) ?? null;
+  const activeTab = useTabsStore((state) => {
+    if (tabId) return state.tabs.find((t) => t.id === tabId) ?? null;
+    if (state.activeTabId) return state.tabs.find((t) => t.id === state.activeTabId) ?? null;
     return state.tabs[0] ?? null;
   });
 
-  const displayUrl = activeTab?.url || currentUrl;
+  const displayUrl = activeTab?.url || url || '';
   const displayTabId = tabId || activeTab?.id || 'default';
-  const displayPrivacyMode = (activeTab?.mode || 'normal') as 'normal' | 'private' | 'ghost';
-  const frameSrc = iframeSrcForUrl(displayUrl);
+  const browseUrl = resolveBrowseUrl(displayUrl);
+  const iframeSrc = browseUrl === 'about:blank' ? 'https://www.google.com/' : browseUrl;
+  const inTauri = isTauriShell();
+  const forceIframe = preferIframeProp ?? preferIframeBrowser();
+  const useNative =
+    inTauri && !forceIframe && !nativeFailed && /^https?:\/\//i.test(iframeSrc);
 
   useEffect(() => {
-    if (url && url !== currentUrl) {
-      setCurrentUrl(url);
+    setNativeFailed(false);
+  }, [iframeSrc, displayTabId]);
+
+  const handleNativeLoadStart = useCallback(() => {
+    const tab = useTabsStore.getState().tabs.find((t) => t.id === displayTabId);
+    if (!tab?.isLoading) {
+      updateTab(displayTabId, { isLoading: true });
     }
-  }, [url, currentUrl]);
+    setCompanionEmotion('thinking');
+  }, [displayTabId, updateTab]);
 
-  useEffect(() => {
-    setIsLoading(true);
-  }, [frameSrc, displayTabId]);
-
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || frameSrc === 'about:blank') {
-      setIsLoading(false);
-      return;
+  const handleNativeLoadEnd = useCallback(() => {
+    const tab = useTabsStore.getState().tabs.find((t) => t.id === displayTabId);
+    if (tab?.isLoading) {
+      updateTab(displayTabId, { isLoading: false });
     }
+    setCompanionEmotion('happy', { revertMs: 2000, revertTo: 'idle' });
+    eventBus.emit('PAGE_LOAD', { url: tab?.url, title: tab?.title, tabId: displayTabId }, 'browser');
+    onLoadEnd?.();
+  }, [displayTabId, updateTab, onLoadEnd]);
 
-    const handleLoad = () => {
-      setIsLoading(false);
-      try {
-        const iframeUrl = iframe.contentWindow?.location.href || displayUrl;
-        if (iframeUrl && iframeUrl !== 'about:blank' && iframeUrl !== currentUrl) {
-          setCurrentUrl(iframeUrl);
-          onUrlChange?.(iframeUrl);
-        }
-      } catch {
-        onUrlChange?.(displayUrl);
-      }
-    };
+  const handleNativeFailed = useCallback(() => {
+    setNativeFailed(true);
+    updateTab(displayTabId, { isLoading: false });
+    const tab = useTabsStore.getState().tabs.find((t) => t.id === displayTabId);
+    eventBus.emit(
+      'PAGE_ERROR',
+      { url: tab?.url, error: 'Native webview failed', tabId: displayTabId },
+      'browser'
+    );
+    onLoadFailed?.('Native webview failed — trying iframe…');
+  }, [displayTabId, updateTab, onLoadFailed]);
 
-    const handleTitleChange = () => {
-      try {
-        const title = iframe.contentDocument?.title;
-        if (title) {
-          onTitleChange?.(title);
-        }
-      } catch {
-        /* cross-origin */
-      }
-    };
+  const handleIframeFailed = useCallback(
+    (message: string) => {
+      updateTab(displayTabId, { isLoading: false });
+      setCompanionEmotion('noticing', { revertMs: 3000, revertTo: 'idle' });
+      const tab = useTabsStore.getState().tabs.find((t) => t.id === displayTabId);
+      eventBus.emit('PAGE_ERROR', { url: tab?.url, error: message, tabId: displayTabId }, 'browser');
+      onLoadFailed?.(message);
+    },
+    [displayTabId, updateTab, onLoadFailed]
+  );
 
-    iframe.addEventListener('load', handleLoad);
+  const handleIframeLoadStart = useCallback(() => {
+    updateTab(displayTabId, { isLoading: true });
+    setCompanionEmotion('thinking');
+  }, [displayTabId, updateTab]);
 
-    const observer = new MutationObserver(handleTitleChange);
-    try {
-      if (iframe.contentDocument) {
-        observer.observe(iframe.contentDocument.head, {
-          childList: true,
-          subtree: true,
-        });
-      }
-    } catch {
-      /* cross-origin */
-    }
+  const handleIframeLoadEnd = useCallback(() => {
+    updateTab(displayTabId, { isLoading: false });
+    setCompanionEmotion('happy', { revertMs: 2000, revertTo: 'idle' });
+    const tab = useTabsStore.getState().tabs.find((t) => t.id === displayTabId);
+    eventBus.emit('PAGE_LOAD', { url: tab?.url, title: tab?.title, tabId: displayTabId }, 'browser');
+    onLoadEnd?.();
+  }, [displayTabId, updateTab, onLoadEnd]);
 
-    return () => {
-      iframe.removeEventListener('load', handleLoad);
-      observer.disconnect();
-    };
-  }, [frameSrc, displayUrl, currentUrl, onUrlChange, onTitleChange]);
-
-  /** Stricter subset when privacy hardening is on; still allows normal sites to run. */
-  const sandboxAttrs = privacyMode
-    ? [
-        'allow-same-origin',
-        'allow-scripts',
-        'allow-forms',
-        'allow-popups',
-        'allow-popups-to-escape-sandbox',
-        'allow-modals',
-        'allow-downloads',
-        'allow-pointer-lock',
-        'allow-presentation',
-        'allow-orientation-lock',
-        'allow-storage-access-by-user-activation',
-        'allow-top-navigation-by-user-activation',
-      ]
-    : SAFE_IFRAME_SANDBOX.split(/\s+/).filter(Boolean);
-
-  if (isTauriRuntime()) {
+  if (useNative) {
     return (
       <NativeWebView
         tabId={displayTabId}
-        url={iframeSrcForUrl(displayUrl) === 'about:blank' ? 'https://www.google.com' : displayUrl}
+        url={iframeSrc}
         className={className}
-        privacyMode={displayPrivacyMode}
-        onUrlChange={newUrl => {
-          setCurrentUrl(newUrl);
-          onUrlChange?.(newUrl);
-        }}
-        onTitleChange={onTitleChange}
-        onLoadStart={() => setIsLoading(true)}
-        onLoadEnd={() => setIsLoading(false)}
+        visible={visible}
+        onLoadStart={handleNativeLoadStart}
+        onLoadEnd={handleNativeLoadEnd}
+        onFailed={handleNativeFailed}
       />
     );
   }
 
-  const IframeContent = () => (
-    <iframe
-      key={`${displayTabId}-${frameSrc}`}
-      ref={iframeRef}
-      data-tab-id={displayTabId}
-      title="Regen browse"
-      src={frameSrc}
-      className="h-full w-full border-0"
-      sandbox={sandboxAttrs.join(' ')}
-      referrerPolicy="strict-origin-when-cross-origin"
-      allow="fullscreen; autoplay; camera; microphone; geolocation; payment; clipboard-read; clipboard-write; display-capture; storage-access; accelerometer; gyroscope; magnetometer; midi; serial; usb; xr-spatial-tracking; screen-wake-lock; web-share"
-      style={{ background: '#000' }}
-      onLoad={() => setIsLoading(false)}
-    />
-  );
-
   return (
-    <div className={`relative ${className}`}>
-      <Suspense
-        fallback={
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
-            <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-400" />
-              <p className="mt-4 text-sm text-gray-400">Loading {frameSrc}...</p>
-            </div>
-          </div>
-        }
-      >
-        {isLoading && frameSrc !== 'about:blank' && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
-            <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-400" />
-              <p className="mt-4 text-sm text-gray-400">Loading {frameSrc}...</p>
-            </div>
-          </div>
-        )}
-        <IframeContent />
-      </Suspense>
-    </div>
+    <IframeBrowsePane
+      tabId={displayTabId}
+      src={iframeSrc}
+      className={className}
+      onLoadStart={handleIframeLoadStart}
+      onLoadEnd={handleIframeLoadEnd}
+      onLoadFailed={handleIframeFailed}
+      onUrlChange={onUrlChange}
+    />
   );
 }

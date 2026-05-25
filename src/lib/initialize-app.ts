@@ -65,7 +65,6 @@ function verifyAgentClient(): boolean {
     typeof agent.getRun === 'function';
 
   if (!hasRequiredMethods) {
-    console.warn('[Init] Agent client not properly initialized');
     return false;
   }
 
@@ -120,18 +119,10 @@ export async function initializeApp(): Promise<InitializationStatus> {
   }
   console.log('[Init] ✓ API client verified');
 
-  // 3. Verify agent client
+  // 3. Agent client (optional — desktop shell works without window.agent)
   initializationStatus.agentClient = verifyAgentClient();
-  if (!initializationStatus.agentClient) {
-    console.warn('[Init] ⚠ Agent client not initialized - will retry');
-    // Retry after a short delay (agent-client might still be loading)
-    await new Promise(resolve => setTimeout(resolve, 500));
-    initializationStatus.agentClient = verifyAgentClient();
-  }
   if (initializationStatus.agentClient) {
     console.log('[Init] ✓ Agent client verified');
-  } else {
-    console.warn('[Init] ⚠ Agent client still not available');
   }
 
   // 4. Check backend connection
@@ -155,15 +146,11 @@ export async function initializeApp(): Promise<InitializationStatus> {
   }
 
   // Summary
-  const allCritical =
-    initializationStatus.browserIntegration &&
-    initializationStatus.apiClient &&
-    initializationStatus.agentClient;
+  const ready =
+    initializationStatus.browserIntegration && initializationStatus.apiClient;
 
-  if (allCritical) {
+  if (ready) {
     console.log('[Init] ✅ Application initialization complete');
-  } else {
-    console.warn('[Init] ⚠ Some components not initialized');
   }
 
   // Start auxiliary engines that don't require backend
@@ -189,6 +176,13 @@ export async function initializeApp(): Promise<InitializationStatus> {
     console.warn('[Init] Regen-v1 initialization failed:', err);
   }
 
+  try {
+    const { initializeAvatarSystem } = await import('./avatar/initializeAvatarSystem');
+    initializeAvatarSystem();
+  } catch (err) {
+    console.warn('[Init] Avatar automation failed to start:', err);
+  }
+
   // Store status globally for debugging
   if (typeof window !== 'undefined') {
     (window as any).__APP_INIT_STATUS = initializationStatus;
@@ -210,8 +204,7 @@ export function getInitializationStatus(): InitializationStatus {
 export function isAppInitialized(): boolean {
   return (
     initializationStatus.browserIntegration &&
-    initializationStatus.apiClient &&
-    initializationStatus.agentClient
+    initializationStatus.apiClient
   );
 }
 

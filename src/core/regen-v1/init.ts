@@ -25,7 +25,6 @@ const cleanupFunctions: (() => void)[] = [];
  */
 export function initRegenV1(): () => void {
   if (initialized) {
-    console.warn("[RegenV1] Already initialized");
     return () => {
       cleanupFunctions.forEach((cleanup) => cleanup());
       cleanupFunctions.length = 0;

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regen Browser — Download</title>
+  <meta name="description" content="Download Regen Browser — AI-powered browser with avatar companion." />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1623;
+      color: #e8eaf0;
+      min-height: 100vh;
+      padding: 48px 20px;
+    }
+    .container { max-width: 880px; margin: 0 auto; text-align: center; }
+    h1 { font-size: 2.5rem; margin-bottom: 12px; color: #f0a030; }
+    .tagline { font-size: 1.125rem; color: #a0b0d0; margin-bottom: 40px; line-height: 1.6; }
+    .downloads {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin: 32px 0;
+    }
+    .download-btn {
+      display: block;
+      padding: 20px 16px;
+      background: #1a2133;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #c0d0f0;
+      text-decoration: none;
+      transition: transform 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .download-btn:hover {
+      background: #252d42;
+      border-color: rgba(240, 160, 48, 0.4);
+      transform: translateY(-2px);
+    }
+    .download-icon { font-size: 2rem; margin-bottom: 8px; }
+    .download-name { font-weight: 600; margin-bottom: 4px; }
+    .download-desc { font-size: 0.75rem; color: #8090b0; word-break: break-all; }
+    .meta { color: #6a7a9a; font-size: 0.9rem; margin-top: 24px; }
+    .meta a { color: #f0a030; }
+    .loading { color: #8090b0; padding: 24px; }
+    .error { color: #f0a030; padding: 16px; }
+    .full-page { margin-top: 16px; }
+    .full-page a { color: #94a3b8; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Regen Browser</h1>
+    <p class="tagline">
+      AI-powered browsing with an avatar companion. Privacy-first, native desktop app.
+    </p>
+
+    <div id="downloads" class="downloads">
+      <p class="loading">Loading latest release…</p>
+    </div>
+
+    <p class="meta">
+      Latest version: <strong id="version">—</strong>
+      · <a id="releases-link" href="https://github.com/nrbns/Regen-V2/releases">All releases on GitHub</a>
+    </p>
+
+    <p class="full-page">
+      <a href="/landing.html">Full product page</a>
+    </p>
+  </div>
+
+  <script>
+    const GITHUB_OWNER = 'nrbns';
+    const GITHUB_REPO = 'Regen-V2';
+
+    const PLATFORMS = [
+      { name: 'Windows', icon: '💻', match: (n) => /\.msi$/i.test(n) || /\.exe$/i.test(n) },
+      { name: 'macOS (Apple Silicon)', icon: '🍎', match: (n) => /aarch64.*\.dmg$/i.test(n) },
+      { name: 'macOS (Intel)', icon: '🍎', match: (n) => /x64.*\.dmg$/i.test(n) || /x86_64.*\.dmg$/i.test(n) },
+      { name: 'Linux', icon: '🐧', match: (n) => /\.AppImage$/i.test(n) || /\.deb$/i.test(n) },
+    ];
+
+    document.getElementById('releases-link').href =
+      `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
+
+    async function loadReleases() {
+      const root = document.getElementById('downloads');
+      const api = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+
+      try {
+        const res = await fetch(api);
+        if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('version').textContent = data.tag_name || '—';
+        root.innerHTML = '';
+
+        const used = new Set();
+        for (const platform of PLATFORMS) {
+          const asset = (data.assets || []).find(
+            (a) => !used.has(a.id) && platform.match(a.name)
+          );
+          if (!asset) continue;
+          used.add(asset.id);
+
+          const btn = document.createElement('a');
+          btn.href = asset.browser_download_url;
+          btn.className = 'download-btn';
+          btn.innerHTML = `
+            <div class="download-icon">${platform.icon}</div>
+            <div class="download-name">${platform.name}</div>
+            <div class="download-desc">${asset.name}</div>
+          `;
+          root.appendChild(btn);
+        }
+
+        if (!root.children.length) {
+          root.innerHTML = `<p class="error">No installers found on the latest release yet. Check back after CI finishes.</p>`;
+        }
+      } catch (e) {
+        console.error(e);
+        root.innerHTML = `
+          <p class="error">
+            Could not load releases.
+            <a href="https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases">Download from GitHub</a>
+          </p>
+        `;
+      }
+    }
+
+    loadReleases();
+  </script>
+</body>
+</html>

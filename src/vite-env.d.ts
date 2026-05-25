@@ -37,6 +37,9 @@ interface ImportMetaEnv {
   readonly DISABLE_REDIX?: string;
   readonly DEV?: boolean;
   readonly NODE_ENV?: 'development' | 'production' | 'test';
+  readonly TAURI_ENV_PLATFORM?: string;
+  readonly TAURI_PLATFORM?: string;
+  readonly TAURI_ARCH?: string;
 }
 
 interface ImportMeta {

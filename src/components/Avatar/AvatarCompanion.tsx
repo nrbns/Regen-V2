@@ -7,8 +7,10 @@ import {
   AVATAR_SIZES,
   EMOTION_COLORS,
   EMOTION_GLOW,
+  EMOTION_LABELS,
   type AvatarMode,
 } from './avatarStyles';
+import { BROWSER_AVATAR_FALLBACK, BROWSER_AVATAR_SRC } from './avatarAssets';
 
 export type { AvatarMode };
 
@@ -45,6 +47,10 @@ type Props = {
   live?: AvatarLiveChrome | null;
   /** Fewer controls (e.g. side panel) */
   liveCompact?: boolean;
+  /** Browser shell: only use character PNGs, never icon/logo fallbacks */
+  lockBrowserArtwork?: boolean;
+  /** Show human-readable emotion chip (realtime browser) */
+  showEmotionBadge?: boolean;
 };
 
 function AvatarCompanionInner({
@@ -55,14 +61,17 @@ function AvatarCompanionInner({
   onClick,
   showStatusDot = true,
   autoRevertMs = 0,
-  imageSrc = '/images/character-half.png',
+  imageSrc = BROWSER_AVATAR_SRC,
   className = '',
   live = null,
   liveCompact = false,
+  lockBrowserArtwork = false,
+  showEmotionBadge = false,
 }: Props) {
   const dims = AVATAR_SIZES[mode];
   const w = size ?? dims.width;
   const h = size ? Math.round(size * 1.15) : dims.height;
+  const [resolvedSrc, setResolvedSrc] = useState(imageSrc);
 
   const [displayEmotion, setDisplayEmotion] = useState<AvatarEmotion>(emotionProp);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,7 +108,12 @@ function AvatarCompanionInner({
     companionDebug.patch({ emotion: emotionProp });
   }, [emotionProp]);
 
+  useEffect(() => {
+    setResolvedSrc(imageSrc || BROWSER_AVATAR_SRC);
+  }, [imageSrc]);
+
   const thinking = displayEmotion === 'thinking';
+  const isMini = mode === 'mini' || mode === 'compact';
   const animClass =
     displayEmotion === 'listening'
       ? 'regen-avatar-img--listening'
@@ -111,7 +125,7 @@ function AvatarCompanionInner({
             ? 'regen-avatar-img--happy'
             : displayEmotion === 'noticing'
               ? 'regen-avatar-img--noticing'
-              : '';
+              : 'regen-avatar-img--idle';
 
   const wrapClass = `regen-avatar-wrap relative flex flex-col items-center justify-center border-0 bg-transparent p-0 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`;
   const wrapStyle = { width: w, height: h, transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' };
@@ -129,10 +143,14 @@ function AvatarCompanionInner({
         />
 
         {/* Thinking dots — above head */}
-        {thinking && mode !== 'compact' && (
+        {thinking && (
           <div
-            className="absolute flex gap-1.5 pointer-events-none"
-            style={{ top: mode === 'general' ? 8 : 0, left: '50%', transform: 'translateX(-50%)' }}
+            className="absolute flex gap-1 pointer-events-none"
+            style={{
+              top: mode === 'general' ? 8 : isMini ? 2 : 0,
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
             aria-hidden
           >
             {[0, 1, 2].map((i) => (
@@ -140,8 +158,8 @@ function AvatarCompanionInner({
                 key={i}
                 className="rounded-full"
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: isMini ? 5 : 8,
+                  height: isMini ? 5 : 8,
                   background: EMOTION_COLORS.thinking,
                   animation: `regen-dot-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
                 }}
@@ -151,9 +169,14 @@ function AvatarCompanionInner({
         )}
 
         <img
-          src={imageSrc}
+          src={resolvedSrc}
           alt="Regen AI"
           draggable={false}
+          onError={() => {
+            if (lockBrowserArtwork && resolvedSrc !== BROWSER_AVATAR_FALLBACK) {
+              setResolvedSrc(BROWSER_AVATAR_FALLBACK);
+            }
+          }}
           className={`object-contain drop-shadow-lg regen-avatar-img ${animClass}`}
           style={{
             width: w * 0.92,
@@ -169,26 +192,41 @@ function AvatarCompanionInner({
           }}
         />
 
-        {/* Status dot — bottom right */}
-        {showStatusDot && mode !== 'compact' && (
+        {/* Live emotion ring — mini realtime browser */}
+        {(showStatusDot || showEmotionBadge) && (
           <span
             className="absolute pointer-events-none rounded-full"
             style={{
-              width: mode === 'general' ? 28 : 20,
-              height: mode === 'general' ? 28 : 20,
-              bottom: mode === 'general' ? 24 : 12,
-              right: mode === 'general' ? 16 : 8,
+              width: isMini ? 12 : mode === 'general' ? 28 : 20,
+              height: isMini ? 12 : mode === 'general' ? 28 : 20,
+              bottom: isMini ? 6 : mode === 'general' ? 24 : 12,
+              right: isMini ? 4 : mode === 'general' ? 16 : 8,
               background: glowColor,
-              boxShadow: `0 0 15px ${glowColor}88`,
+              boxShadow: `0 0 12px ${glowColor}aa`,
               animation: displayEmotion !== 'idle' ? 'regen-status-pulse 2s ease-in-out infinite' : undefined,
-              transition: 'background 0.2s ease, box-shadow 0.2s ease',
+              transition: 'background 0.25s ease, box-shadow 0.25s ease',
             }}
           />
+        )}
+
+        {showEmotionBadge && (
+          <span
+            className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 text-center font-medium backdrop-blur-sm"
+            style={{
+              bottom: isMini ? -6 : -8,
+              fontSize: isMini ? 9 : 10,
+              color: glowColor,
+              borderColor: `${glowColor}55`,
+              background: 'rgba(8,12,22,0.82)',
+            }}
+          >
+            {EMOTION_LABELS[displayEmotion]}
+          </span>
         )}
     </>
   );
 
-  const showOverlay = !!(live && !liveCompact && mode !== 'compact');
+  const showOverlay = !!(live && !liveCompact && mode !== 'compact' && mode !== 'mini');
   const showStack = !!(live && liveCompact);
 
   const liveControls = (placement: 'overlay' | 'stack') => {
