@@ -208,30 +208,20 @@ export const useTabsStore = create<TabsState>()(
           ),
         }));
 
-        // In real implementation, backend would emit load events
-        // For now, simulate loading - actual navigation happens in iframe/webview
-        setTimeout(() => {
-          try {
-            if (isSearchTabUrl(url)) {
-              const q = getSearchQueryFromUrl(url);
-              get().updateTab(tabId, {
-                title: q ? `Search · ${q.slice(0, 48)}${q.length > 48 ? '…' : ''}` : 'Search',
-                isLoading: false,
-              });
-              return;
-            }
+        // Title hint only — isLoading clears on PAGE_LOAD / native webview events (not a fake timer).
+        try {
+          if (isSearchTabUrl(url)) {
+            const q = getSearchQueryFromUrl(url);
+            get().updateTab(tabId, {
+              title: q ? `Search · ${q.slice(0, 48)}${q.length > 48 ? '…' : ''}` : 'Search',
+            });
+          } else if (/^https?:\/\//i.test(url)) {
             const hostname = new URL(url).hostname;
-            get().updateTab(tabId, {
-              title: hostname || 'New Tab',
-              isLoading: false,
-            });
-          } catch {
-            get().updateTab(tabId, {
-              title: url || 'New Tab',
-              isLoading: false,
-            });
+            get().updateTab(tabId, { title: hostname || 'New Tab' });
           }
-        }, 500);
+        } catch {
+          /* keep title until page load */
+        }
       },
 
       // NEW: Called by backend when navigation is confirmed

@@ -15,25 +15,15 @@ let tauriReadTextFile: ((path: string) => Promise<string>) | null = null;
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {
   try {
     // @ts-ignore - Tauri APIs may not be available at compile time
-    import('@tauri-apps/api/tauri')
+    import('@tauri-apps/api/core')
       .then((m: any) => {
         tauriInvoke = m.invoke;
       })
       .catch(() => {});
-    // @ts-ignore - Tauri APIs may not be available at compile time
-    import('@tauri-apps/api/dialog')
-      .then((m: any) => {
-        tauriSave = m.save;
-        tauriOpen = m.open;
-      })
-      .catch(() => {});
-    // @ts-ignore - Tauri APIs may not be available at compile time
-    import('@tauri-apps/api/fs')
-      .then((m: any) => {
-        tauriWriteTextFile = m.writeTextFile;
-        tauriReadTextFile = m.readTextFile;
-      })
-      .catch(() => {});
+    /**
+     * Tauri 2 moved many APIs (dialog/fs) into plugins. Those plugins are optional in this repo,
+     * so we keep invoke support but avoid hard-importing missing plugin packages.
+     */
   } catch {
     // Tauri APIs not available
   }

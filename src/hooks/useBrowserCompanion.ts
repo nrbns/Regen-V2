@@ -9,6 +9,10 @@ import { useTabsStore } from '../state/tabsStore';
 import { useExecutionStore } from '../state/executionStore';
 import { isTauriRuntime } from '../lib/env';
 import { setCompanionEmotion } from '../lib/companion/avatarBridge';
+import { getPageSnippet } from '../lib/browser/pageContextStore';
+import { buildPageContextBlock } from '../lib/browser/pageGroundedPrompt';
+import { fetchNativePageSnippet } from '../lib/browser/fetchPageSnippet';
+import { isNewTabUrl } from '../lib/browser/normalizeUrl';
 
 export function useBrowserCompanion() {
   const voiceRef = useRef<VoiceHandler | null>(null);
@@ -86,9 +90,20 @@ export function useBrowserCompanion() {
     getExecutionClient().execute(text, { url: tab?.url || undefined, tabId: tab?.id });
     startTransition(() => setStreamText(''));
 
+    let pageContext = '';
+    if (activeTabId && tab?.url && !isNewTabUrl(tab.url)) {
+      let snippet = getPageSnippet(activeTabId);
+      if (!snippet?.text || Date.now() - snippet.fetchedAt > 90_000) {
+        await fetchNativePageSnippet(activeTabId);
+        snippet = getPageSnippet(activeTabId);
+      }
+      pageContext = buildPageContextBlock(snippet);
+    }
+
     try {
       const reply = await llmRef.current!.generate(text, {
         language: lang,
+        pageContext: pageContext || undefined,
         onToken: (token) => {
           startTransition(() => setStreamText((prev) => prev + token));
         },

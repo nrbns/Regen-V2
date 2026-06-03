@@ -10,7 +10,8 @@ type Props = {
   onLoadFailed?: (message: string) => void;
   onLoadEnd?: () => void;
   preferIframe?: boolean;
-  visible?: boolean;
+  /** Whether this tab is the active browse tab (native visibility handled globally). */
+  isTabActive?: boolean;
 };
 
 function RealtimeWebPaneInner({
@@ -21,7 +22,7 @@ function RealtimeWebPaneInner({
   onLoadFailed,
   onLoadEnd,
   preferIframe,
-  visible = true,
+  isTabActive = true,
 }: Props) {
   return (
     <Suspense
@@ -41,7 +42,7 @@ function RealtimeWebPaneInner({
         onLoadFailed={onLoadFailed}
         onLoadEnd={onLoadEnd}
         preferIframe={preferIframe}
-        visible={visible}
+        isTabActive={isTabActive}
       />
     </Suspense>
   );

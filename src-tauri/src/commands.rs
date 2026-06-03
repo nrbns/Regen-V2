@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use tauri::{Emitter, Manager};
 use crate::state::{AppState, PrivacyMode as StatePrivacyMode, AppMode};
 use crate::browser::{TabManager, TabUpdate};
 use crate::db::{Database, PageCache};
@@ -489,7 +490,7 @@ pub async fn downloads_show_in_folder(path: String) -> Result<(), String> {
     use std::path::PathBuf;
     
     let file_path = PathBuf::from(&path);
-    let folder_path = file_path.parent()
+    let _folder_path = file_path.parent()
         .ok_or_else(|| "Invalid file path".to_string())?;
     
     #[cfg(target_os = "windows")]
@@ -573,6 +574,193 @@ pub async fn downloads_delete(
 ) -> Result<(), String> {
     db.delete_download(&id).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Download a URL into the app downloads folder and persist metadata.
+#[tauri::command]
+pub async fn browser_download_url(
+    app: tauri::AppHandle,
+    url: String,
+    filename: Option<String>,
+    db: tauri::State<'_, Database>,
+) -> Result<serde_json::Value, String> {
+    use tauri::path::BaseDirectory;
+    use uuid::Uuid;
+
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return Err("URL is required".to_string());
+    }
+    if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
+        return Err("Only http(s) URLs can be downloaded".to_string());
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let download_dir = app
+        .path()
+        .resolve("downloads", BaseDirectory::AppData)
+        .map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&download_dir).map_err(|e| e.to_string())?;
+
+    let guessed = trimmed
+        .rsplit('/')
+        .next()
+        .unwrap_or("download")
+        .split('?')
+        .next()
+        .unwrap_or("download")
+        .to_string();
+    let name = filename
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| guessed.clone());
+    let path = download_dir.join(&name);
+
+    db.save_download(
+        &id,
+        trimmed,
+        Some(name.as_str()),
+        None,
+        "downloading",
+        0.0,
+        0,
+        None,
+        None,
+        None,
+    )
+    .map_err(|e| e.to_string())?;
+
+    let client = reqwest::Client::builder()
+        .user_agent("RegenBrowser/1.0")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(trimmed)
+        .send()
+        .await
+        .map_err(|e| format!("Download failed: {e}"))?;
+    if !resp.status().is_success() {
+        let _ = db.save_download(
+            &id,
+            trimmed,
+            Some(name.as_str()),
+            None,
+            "failed",
+            0.0,
+            0,
+            None,
+            None,
+            None,
+        );
+        return Err(format!("HTTP {}", resp.status()));
+    }
+
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+    let total = bytes.len() as i64;
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    let path_str = path.to_string_lossy().to_string();
+
+    db.save_download(
+        &id,
+        trimmed,
+        Some(name.as_str()),
+        Some(path_str.as_str()),
+        "completed",
+        100.0,
+        total,
+        Some(total),
+        None,
+        None,
+    )
+    .map_err(|e| e.to_string())?;
+
+    let _ = app.emit(
+        "browser://download-complete",
+        serde_json::json!({
+            "id": id,
+            "url": trimmed,
+            "filename": name,
+            "path": path_str,
+        }),
+    );
+
+    Ok(serde_json::json!({
+        "id": id,
+        "url": trimmed,
+        "filename": name,
+        "path": path_str,
+        "status": "completed",
+    }))
+}
+
+/// Save UTF-8 text (e.g. page overview) into the downloads folder and persist metadata.
+#[tauri::command]
+pub async fn browser_save_text_download(
+    app: tauri::AppHandle,
+    url: String,
+    filename: String,
+    content: String,
+    db: tauri::State<'_, Database>,
+) -> Result<serde_json::Value, String> {
+    use tauri::path::BaseDirectory;
+    use uuid::Uuid;
+
+    let name = filename.trim();
+    if name.is_empty() {
+        return Err("Filename is required".to_string());
+    }
+    if content.trim().is_empty() {
+        return Err("Content is empty".to_string());
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let download_dir = app
+        .path()
+        .resolve("downloads", BaseDirectory::AppData)
+        .map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&download_dir).map_err(|e| e.to_string())?;
+
+    let path = download_dir.join(name);
+    let bytes = content.as_bytes();
+    let total = bytes.len() as i64;
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    let path_str = path.to_string_lossy().to_string();
+    let source_url = url.trim();
+
+    db.save_download(
+        &id,
+        if source_url.is_empty() {
+            "regen://page-overview"
+        } else {
+            source_url
+        },
+        Some(name),
+        Some(path_str.as_str()),
+        "completed",
+        100.0,
+        total,
+        Some(total),
+        None,
+        None,
+    )
+    .map_err(|e| e.to_string())?;
+
+    let _ = app.emit(
+        "browser://download-complete",
+        serde_json::json!({
+            "id": id,
+            "url": source_url,
+            "filename": name,
+            "path": path_str,
+        }),
+    );
+
+    Ok(serde_json::json!({
+        "id": id,
+        "url": source_url,
+        "filename": name,
+        "path": path_str,
+        "status": "completed",
+    }))
 }
 
 // ============================================================================
@@ -685,7 +873,7 @@ pub struct TaskResponse {
 }
 
 #[tauri::command]
-pub async fn run_demo_agent(intent: String) -> Result<TaskResponse, String> {
+pub async fn run_demo_agent(_intent: String) -> Result<TaskResponse, String> {
     // This would normally call into the Node.js task system
     // For now, return a placeholder response
     // In a real implementation, this would trigger the Node.js demoAgentRunner
@@ -740,7 +928,7 @@ pub struct SystemStateResponse {
 
 // Tab management commands
 #[tauri::command]
-pub async fn new_tab(url: Option<String>) -> Result<TabResponse, String> {
+pub async fn new_tab(_url: Option<String>) -> Result<TabResponse, String> {
     // This would forward to the Node.js backend
     // For now, return mock response
     let tab_id = format!("tab-{}", chrono::Utc::now().timestamp());
@@ -748,38 +936,38 @@ pub async fn new_tab(url: Option<String>) -> Result<TabResponse, String> {
 }
 
 #[tauri::command]
-pub async fn close_tab(tab_id: String) -> Result<(), String> {
+pub async fn close_tab(_tab_id: String) -> Result<(), String> {
     // Forward to Node.js backend
     Ok(())
 }
 
 #[tauri::command]
-pub async fn switch_tab(tab_id: String) -> Result<(), String> {
+pub async fn switch_tab(_tab_id: String) -> Result<(), String> {
     // Forward to Node.js backend
     Ok(())
 }
 
 // Navigation commands
 #[tauri::command]
-pub async fn navigate(tab_id: String, url: String) -> Result<(), String> {
+pub async fn navigate(_tab_id: String, _url: String) -> Result<(), String> {
     // Forward to Node.js backend NavigationController
     Ok(())
 }
 
 #[tauri::command]
-pub async fn back(tab_id: String) -> Result<(), String> {
+pub async fn back(_tab_id: String) -> Result<(), String> {
     // Forward to Node.js backend
     Ok(())
 }
 
 #[tauri::command]
-pub async fn forward(tab_id: String) -> Result<(), String> {
+pub async fn forward(_tab_id: String) -> Result<(), String> {
     // Forward to Node.js backend
     Ok(())
 }
 
 #[tauri::command]
-pub async fn reload(tab_id: String) -> Result<(), String> {
+pub async fn reload(_tab_id: String) -> Result<(), String> {
     // Forward to Node.js backend
     Ok(())
 }
@@ -798,7 +986,7 @@ pub async fn run_ai(payload: AIRunPayload) -> Result<AIResponse, String> {
 
 // Download commands
 #[tauri::command]
-pub async fn download(filename: String, url: String) -> Result<DownloadResponse, String> {
+pub async fn download(_filename: String, _url: String) -> Result<DownloadResponse, String> {
     // Forward to Node.js backend DownloadManager
     let download_id = format!("download-{}", chrono::Utc::now().timestamp());
     Ok(DownloadResponse {
@@ -873,8 +1061,8 @@ pub async fn avatar_get_smart_suggestions(
 /// Legacy name used by PageSummarizer — delegates to tab webview extract.
 #[tauri::command]
 pub async fn extract_page_content(
+    app: tauri::AppHandle,
     tab_id: String,
-    parent: tauri::WebviewWindow,
 ) -> Result<crate::browser_webview::PageSnippetPayload, String> {
-    crate::browser_webview::browser_webview_extract_page(parent, tab_id).await
+    crate::browser_webview::browser_webview_extract_page(app, tab_id, None).await
 }

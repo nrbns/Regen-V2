@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <!-- Permissive CSP: Tauri IPC + all sites in iframe fallback -->
     <meta http-equiv="Content-Security-Policy"
-      content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; connect-src * http://ipc.localhost https://ipc.localhost ws: wss:; img-src * data: blob:; style-src * 'unsafe-inline'; font-src * data:; frame-src * http: https: data: blob:; media-src * blob:; worker-src * blob:;" />
+      content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; connect-src * tauri: ipc: http://ipc.localhost https://ipc.localhost ws: wss:; img-src * data: blob:; style-src * 'unsafe-inline'; font-src * data:; frame-src * http: https: data: blob:; media-src * blob:; worker-src * blob:;" />
     <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="preload" href="/images/character-half.png" as="image" />
+    <link rel="preload" href="/images/character-half-sm.png" as="image" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#6366f1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

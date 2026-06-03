@@ -19,6 +19,10 @@ export const EMOTION_COLORS: Record<AvatarEmotion, string> = {
   speaking: '#F0A030',
   noticing: '#EF9F27',
   happy: '#4A9960',
+  concerned: '#e8a84a',
+  excited: '#ff9f5a',
+  curious: '#c9a0ff',
+  calm: '#8ab4c4',
 };
 
 export const EMOTION_LABELS: Record<AvatarEmotion, string> = {
@@ -28,6 +32,10 @@ export const EMOTION_LABELS: Record<AvatarEmotion, string> = {
   speaking: 'Speaking…',
   noticing: 'Noticing…',
   happy: 'Page ready',
+  concerned: 'Checking…',
+  excited: 'Great find!',
+  curious: 'Exploring…',
+  calm: 'Ready',
 };
 
 export const EMOTION_GLOW: Record<AvatarEmotion, string> = {
@@ -37,6 +45,10 @@ export const EMOTION_GLOW: Record<AvatarEmotion, string> = {
   speaking: 'radial-gradient(circle, rgba(240,160,48,0.28) 0%, transparent 70%)',
   noticing: 'radial-gradient(circle, rgba(239,159,39,0.25) 0%, transparent 70%)',
   happy: 'radial-gradient(circle, rgba(74,153,96,0.28) 0%, transparent 70%)',
+  concerned: 'radial-gradient(circle, rgba(232,168,74,0.22) 0%, transparent 70%)',
+  excited: 'radial-gradient(circle, rgba(255,159,90,0.28) 0%, transparent 70%)',
+  curious: 'radial-gradient(circle, rgba(201,160,255,0.22) 0%, transparent 70%)',
+  calm: 'radial-gradient(circle, rgba(138,180,196,0.18) 0%, transparent 70%)',
 };
 
 export const AVATAR_CSS = `

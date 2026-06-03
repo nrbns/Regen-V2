@@ -1,51 +1,65 @@
-import { useEffect, useState } from 'react';
-import { SimpleAvatar, type SimpleAvatarEmotion, type SimpleAvatarProps } from './SimpleAvatar';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import type { ProfessionalAvatarProps } from './ProfessionalAvatar';
+import ProfessionalAvatar from './ProfessionalAvatar';
+import { getAvatarRenderMode, type AvatarRenderMode } from '../../lib/avatar/avatarMode';
 
-const GLB_PATH = '/models/avatar.glb';
+const Avatar3DLazy = lazy(() => import('./Avatar3D'));
 
-export type AdaptiveAvatarProps = SimpleAvatarProps;
+export type AdaptiveAvatarProps = ProfessionalAvatarProps & {
+  mode?: AvatarRenderMode;
+};
 
-/**
- * Uses SimpleAvatar by default. When `public/models/avatar.glb` exists, reserves
- * a hook for a future Three.js viewer (install @react-three/fiber to enable).
- */
-export function AdaptiveAvatar(props: AdaptiveAvatarProps) {
-  const [hasGlb, setHasGlb] = useState(false);
+function canUse3D(): Promise<boolean> {
+  // @vite-ignore — optional dep; must not break shell HMR when three is missing
+  return import(/* @vite-ignore */ 'three')
+    .then(() => true)
+    .catch(() => false);
+}
+
+export function AdaptiveAvatar({ mode: modeProp, ...props }: AdaptiveAvatarProps) {
+  const [mode, setMode] = useState<AvatarRenderMode>(() => modeProp ?? getAvatarRenderMode());
+  const [use3d, setUse3d] = useState(false);
+  const [ready, setReady] = useState(mode === 'art' || mode === 'svg');
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(GLB_PATH, { method: 'HEAD' })
-      .then((r) => {
-        if (!cancelled && r.ok) setHasGlb(true);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
+    if (modeProp) setMode(modeProp);
+  }, [modeProp]);
+
+  useEffect(() => {
+    const onMode = (e: Event) => {
+      const detail = (e as CustomEvent<AvatarRenderMode>).detail;
+      if (detail) setMode(detail);
     };
+    window.addEventListener('regen:avatar-mode', onMode);
+    return () => window.removeEventListener('regen:avatar-mode', onMode);
   }, []);
 
-  if (hasGlb) {
+  useEffect(() => {
+    if (mode === 'art' || mode === 'svg') {
+      setUse3d(false);
+      setReady(true);
+      return;
+    }
+    // 'svg' legacy → same official artwork
+    if (mode === '3d') {
+      void canUse3D().then((ok) => {
+        setUse3d(ok);
+        setReady(true);
+      });
+    }
+  }, [mode]);
+
+  if (!ready) {
+    return <ProfessionalAvatar {...props} />;
+  }
+
+  if (use3d) {
     return (
-      <div style={{ position: 'relative' }}>
-        <SimpleAvatar {...props} />
-        <span
-          title="3D model detected — add @react-three/fiber to enable GLB viewer"
-          style={{
-            position: 'absolute',
-            bottom: 4,
-            right: 4,
-            fontSize: 9,
-            padding: '2px 6px',
-            borderRadius: 4,
-            background: '#f0a03033',
-            color: '#f0a030',
-          }}
-        >
-          3D ready
-        </span>
-      </div>
+      <Suspense fallback={<ProfessionalAvatar {...props} />}>
+        <Avatar3DLazy {...props} />
+      </Suspense>
     );
   }
 
-  return <SimpleAvatar {...(props as { emotion?: SimpleAvatarEmotion; size?: number; className?: string })} />;
+  return <ProfessionalAvatar {...props} />;
 }

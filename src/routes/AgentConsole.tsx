@@ -20,7 +20,7 @@ import {
   saveLoopState,
   checkForCrashedLoops,
 } from '../core/agents/loopResume';
-import { useSettingsStore } from '../state/settingsStore';
+import { useSettings as useSettingsStore } from '../state/settingsStore';
 import { AgentModeSelector } from '../components/integrations/AgentModeSelector';
 import { multiAgentSystem, type AgentMode } from '../core/agents/multiAgentSystem';
 import { useTabsStore } from '../state/tabsStore';

@@ -6,6 +6,8 @@ export interface GenerateOptions {
   language?: string;
   onToken?: (token: string) => void;
   signal?: AbortSignal;
+  /** Active page excerpt — grounds answers in what the user is viewing. */
+  pageContext?: string;
 }
 
 async function withBackoff<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
@@ -69,7 +71,10 @@ export class LLMHandler {
     this.abort = new AbortController();
     const signal = options.signal ?? this.abort.signal;
 
-    const system = `You are Regen, a calm multilingual browser companion. ${languageInstruction(lang)} Be concise (2-5 sentences). If the user asks to search or find something, suggest they use the address bar or say "search …" so hybrid search can run.`;
+    const pageBlock = options.pageContext?.trim()
+      ? `\n\n${options.pageContext.trim()}`
+      : '';
+    const system = `You are Regen, the Execution Browser companion. ${languageInstruction(lang)} Answer using the current page context when provided. Be concise (2-6 sentences). For new searches, suggest the address bar or Ctrl+K.${pageBlock}`;
 
     const fullText = await withBackoff(async () => {
       const res = await fetch(`${cfg.ollamaUrl}/api/generate`, {

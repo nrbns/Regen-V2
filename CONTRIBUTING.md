@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to RegenBrowser! 🎉
 
-**Before starting** — Please read [DEVELOPERS.md](DEVELOPERS.md) for architecture overview.
+**Before starting** — Read [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) and [docs/DEVELOPER.md](docs/DEVELOPER.md).
 
 ---
 

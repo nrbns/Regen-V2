@@ -4661,15 +4661,6 @@ fastify.get('/metrics/prom', async (_request, reply) => {
   try {
     if (enableWebSockets) {
       await fastify.register(websocketPlugin);
-      try {
-        const { createRequire } = await import('module');
-        const requireMod = createRequire(import.meta.url);
-        const { registerExecutionWebSocket } = requireMod('./execution/fastify-execution-ws.cjs');
-        registerExecutionWebSocket(fastify);
-        fastify.log.info('Execution WebSocket route registered at /ws/execution');
-      } catch (e) {
-        fastify.log.warn({ err: e, message: e?.message }, 'Failed to register /ws/execution route');
-      }
     }
     // Initialize WebSocket server before listening
     const httpServer = fastify.server;
@@ -5044,6 +5035,19 @@ fastify.get('/metrics/prom', async (_request, reply) => {
         throw listenErr;
       }
       fastify.log.info(`Redix server listening on port ${PORT}`);
+
+      // Execution WS via `ws` on the shared HTTP server (reliable upgrade; avoids Invalid frame header)
+      if (enableWebSockets) {
+        try {
+          const { createRequire } = await import('module');
+          const requireMod = createRequire(import.meta.url);
+          const { createExecutionWebSocket } = requireMod('./execution/execution-websocket.cjs');
+          createExecutionWebSocket(fastify.server);
+          fastify.log.info('Execution WebSocket listening at /ws/execution');
+        } catch (e) {
+          fastify.log.warn({ err: e }, 'Failed to start /ws/execution WebSocket');
+        }
+      }
 
       // Initialize Orchestrator WebSocket on the underlying Node server
       try {

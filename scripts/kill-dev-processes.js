@@ -3,7 +3,7 @@
 const { execSync } = require('child_process');
 const net = require('net');
 
-const PORTS = [5173, 5174, 4000, 1420];
+const PORTS = [5173, 5174, 4000, 4001, 1420];
 const PROCESS_NAMES = ['omnibrowser-tauri.exe', 'omnibrowser-tauri', 'regen.exe'];
 
 function portOpen(port) {

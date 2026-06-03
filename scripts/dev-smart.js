@@ -62,6 +62,7 @@ function runConcurrent(scripts) {
 
 (async () => {
   const apiUp = await portOpen(4000);
+  const execWsUp = await portOpen(4001);
   const viteUp = await portOpen(5173);
 
   if (!hasCargo()) {
@@ -73,6 +74,7 @@ function runConcurrent(scripts) {
     const child = runConcurrent([
       { name: 'web', script: 'dev:web' },
       ...(apiUp ? [] : [{ name: 'api', script: 'dev:server' }]),
+      ...(execWsUp ? [] : [{ name: 'exec-ws', script: 'dev:execution-ws' }]),
     ]);
     child.on('exit', (c) => process.exit(c ?? 0));
     return;
@@ -83,6 +85,8 @@ function runConcurrent(scripts) {
   const scripts = [];
   if (!apiUp) scripts.push({ name: 'api', script: 'dev:server' });
   else console.log('[Regen] Port 4000 in use — reusing existing API\n');
+  if (!execWsUp) scripts.push({ name: 'exec-ws', script: 'dev:execution-ws' });
+  else console.log('[Regen] Port 4001 in use — reusing execution WebSocket\n');
 
   if (viteUp && apiUp) {
     console.log('[Regen] Vite on 5173 — launching Tauri only\n');

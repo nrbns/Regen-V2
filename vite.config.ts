@@ -13,6 +13,8 @@ const tauriShimAliases = isTauriShell
   : {
       '@tauri-apps/api/core': resolve(__dirname, './src/shims/tauri.ts'),
       '@tauri-apps/api/event': resolve(__dirname, './src/shims/tauri.ts'),
+      '@tauri-apps/api/dialog': resolve(__dirname, './src/shims/tauri.ts'),
+      '@tauri-apps/api/fs': resolve(__dirname, './src/shims/tauri.ts'),
       '@tauri-apps/api/updater': resolve(__dirname, './src/shims/tauri.ts'),
       '@tauri-apps/api': resolve(__dirname, './src/shims/tauri.ts'),
     };
@@ -27,7 +29,11 @@ const tauriEnvDefine = isTauriShell
   : {};
 
 export default defineConfig({
-  define: tauriEnvDefine,
+  define: {
+    ...tauriEnvDefine,
+    'process.env': {},
+    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
+  },
   plugins: [
     react({
       // Fast Refresh is enabled by default in @vitejs/plugin-react
@@ -271,7 +277,7 @@ export default defineConfig({
             'media-src https:;'
           : "default-src 'self' https: data: blob:; " +
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
-            "connect-src 'self' http://127.0.0.1:4000 http://localhost:4000 http://127.0.0.1:7700 http://localhost:7700 ws://127.0.0.1:4000 ws://localhost:4000 wss://127.0.0.1:4000 wss://localhost:4000 https://www.youtube.com https://www.youtube-nocookie.com https:; " +
+            "connect-src 'self' * tauri: ipc: http://ipc.localhost https://ipc.localhost http://127.0.0.1:4000 http://localhost:4000 http://127.0.0.1:4001 http://localhost:4001 http://127.0.0.1:7700 http://localhost:7700 ws: wss: blob: data: https:; " +
             "img-src 'self' data: https:; " +
             "style-src 'self' 'unsafe-inline' https://rsms.me https:; " +
             "style-src-elem 'self' 'unsafe-inline' https://rsms.me https:; " +
@@ -279,12 +285,6 @@ export default defineConfig({
             "frame-src 'self' http: https: data: blob: https://www.youtube.com https://www.youtube-nocookie.com; " +
             'media-src https;'
     },
-  },
-  define: {
-    // Ensure process.env is available for compatibility
-    'process.env': {},
-    // Enable HMR in development
-    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
   },
   // Clear screen on restart
   clearScreen: false,

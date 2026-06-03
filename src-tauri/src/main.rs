@@ -197,6 +197,15 @@ fn main() {
             browser_webview::browser_webview_close_all,
             browser_webview::browser_webview_hide_all_except,
             browser_webview::browser_webview_extract_page,
+            browser_webview::browser_webview_reload,
+            browser_webview::browser_webview_go_back,
+            browser_webview::browser_webview_go_forward,
+            browser_webview::browser_webview_fit_pane,
+            browser_webview::browser_webview_get_page_state,
+            browser_webview::browser_webview_get_selection,
+            browser_webview::browser_webview_toggle_devtools,
+            commands::browser_download_url,
+            commands::browser_save_text_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

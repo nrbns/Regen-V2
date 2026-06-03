@@ -1,13 +1,12 @@
 /**
  * Renders every tab's browser surface; only the active tab is visible.
- * Keeps native webviews alive when switching (hide/show, not destroy).
+ * Native webviews: hide/show per tab (not destroyed on switch) — see useActiveTabWebview.
  */
 
-import { useEffect } from 'react';
 import type { Tab } from '../../state/tabsStore';
 import { isNewTabUrl } from '../../lib/browser/normalizeUrl';
-import { syncActiveTabWebview } from '../../lib/browser/tabWebviewSync';
-import { isTauriShell } from '../../lib/tauri/runtime';
+import { useActiveTabWebview } from '../../hooks/useActiveTabWebview';
+import { useBrowseEngineStore } from '../../lib/browser/browseEngineStore';
 import { RealtimeWebPane } from './RealtimeWebPane';
 
 type Props = {
@@ -35,47 +34,81 @@ export function TabContentStack({
   onTitleChange,
   newTabPage,
 }: Props) {
-  useEffect(() => {
-    if (!isTauriShell() || preferIframe) return;
-    void syncActiveTabWebview(activeTabId, activeUrl);
-  }, [activeTabId, activeUrl, preferIframe]);
+  const engine = useBrowseEngineStore((s) => s.engine);
+  const nativeFailedByTab = useBrowseEngineStore((s) => s.nativeFailedByTab);
 
-  if (isNewTab) {
-    return <>{newTabPage}</>;
-  }
+  const forceIframe =
+    preferIframe ||
+    engine === 'iframe' ||
+    (engine === 'auto' && activeTabId ? !!nativeFailedByTab[activeTabId] : false);
+
+  useActiveTabWebview(activeTabId, activeUrl);
+
+  const browseTabs = tabs.filter((t) => !isNewTabUrl(t.url));
 
   return (
-    <>
-      {tabs.map((tab) => {
-        if (isNewTabUrl(tab.url)) {
-          return null;
-        }
+    <div
+      style={{
+        position: 'relative',
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {browseTabs.map((tab) => {
         const isActive = tab.id === activeTabId;
+        const tabUseIframe =
+          preferIframe ||
+          engine === 'iframe' ||
+          (engine === 'auto' && !!nativeFailedByTab[tab.id]);
+        const paneVisible = isActive && !isNewTab;
+
         return (
           <div
             key={tab.id}
+            data-tab-slot={tab.id}
             style={{
-              display: isActive ? 'flex' : 'none',
-              flex: 1,
-              minHeight: 0,
+              position: 'absolute',
+              inset: 0,
+              display: paneVisible ? 'flex' : 'none',
               flexDirection: 'column',
               overflow: 'hidden',
+              pointerEvents: paneVisible ? 'auto' : 'none',
+              zIndex: paneVisible ? 1 : 0,
             }}
-            aria-hidden={!isActive}
+            aria-hidden={!paneVisible}
           >
             <RealtimeWebPane
               tabId={tab.id}
               url={tab.url}
-              visible={isActive}
-              preferIframe={preferIframe}
+              isTabActive={isActive}
+              preferIframe={tabUseIframe}
               onUrlChange={(u) => onUrlChange(tab.id, u)}
               onTitleChange={(t) => onTitleChange(tab.id, t)}
-              onLoadFailed={isActive ? onLoadFailed : undefined}
-              onLoadEnd={isActive ? onLoadEnd : undefined}
+              onLoadFailed={paneVisible ? onLoadFailed : undefined}
+              onLoadEnd={paneVisible ? onLoadEnd : undefined}
             />
           </div>
         );
       })}
-    </>
+
+      {isNewTab && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: 2,
+            background: '#0f1623',
+          }}
+        >
+          {newTabPage}
+        </div>
+      )}
+    </div>
   );
 }

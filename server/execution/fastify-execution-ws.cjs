@@ -13,9 +13,22 @@ eventManager.on('*', (envelope) => {
 /**
  * Register /ws/execution via @fastify/websocket (works with Fastify's HTTP stack).
  */
+function resolveWsSocket(connection) {
+  if (!connection) return null;
+  if (typeof connection.send === 'function' && typeof connection.on === 'function') {
+    return connection;
+  }
+  if (connection.socket && typeof connection.socket.send === 'function') {
+    return connection.socket;
+  }
+  return null;
+}
+
 function registerExecutionWebSocket(fastify) {
+  // @fastify/websocket: first arg may be WebSocket or { socket } depending on version.
   fastify.get('/ws/execution', { websocket: true }, (connection, request) => {
-    const ws = connection.socket;
+    const ws = resolveWsSocket(connection);
+    if (!ws) return;
     const url = new URL(request.url || '/ws/execution', 'http://127.0.0.1');
     const sessionId = url.searchParams.get('sessionId') || `s-${Date.now()}`;
     clients.add(ws);
@@ -39,6 +52,7 @@ function registerExecutionWebSocket(fastify) {
     });
 
     ws.on('close', () => clients.delete(ws));
+    ws.on('error', () => clients.delete(ws));
   });
 }
 

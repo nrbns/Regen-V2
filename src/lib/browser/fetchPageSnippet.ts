@@ -1,9 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isTauriShell } from '../tauri/runtime';
+import { shouldRunNativeWebviewCommands } from './tabWebviewSync';
+import { withBrowseProfile } from './browserWebviewInvoke';
 import { setPageSnippet, type PageSnippet } from './pageContextStore';
 
 export async function fetchNativePageSnippet(tabId: string): Promise<PageSnippet | null> {
-  if (!isTauriShell() || !tabId) return null;
+  if (!shouldRunNativeWebviewCommands() || !tabId) return null;
   try {
     const raw = await invoke<{
       tabId?: string;
@@ -11,7 +12,7 @@ export async function fetchNativePageSnippet(tabId: string): Promise<PageSnippet
       url: string;
       title: string;
       text: string;
-    }>('browser_webview_extract_page', { tabId });
+    }>('browser_webview_extract_page', withBrowseProfile({ tabId }));
 
     const snippet: PageSnippet = {
       tabId: raw.tabId ?? raw.tab_id ?? tabId,
@@ -23,7 +24,10 @@ export async function fetchNativePageSnippet(tabId: string): Promise<PageSnippet
     setPageSnippet(snippet);
     return snippet;
   } catch (e) {
-    console.warn('[fetchPageSnippet]', e);
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/webview not found/i.test(msg)) {
+      console.warn('[fetchPageSnippet]', e);
+    }
     return null;
   }
 }

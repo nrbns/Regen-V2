@@ -1,60 +1,22 @@
-# Pull Request
-
 ## Summary
 
-<!-- Brief description of changes -->
+<!-- What changed and why (1–3 sentences) -->
 
-## Files Changed
+## Type
 
-<!-- List of files modified/added -->
+- [ ] feat
+- [ ] fix
+- [ ] docs
+- [ ] chore / refactor
 
-- [ ] `packages/shared/events.js` - Shared event constants
-- [ ] `server/realtime.js` - Socket.IO server
-- [ ] `src/services/realtime/socketService.ts` - Client socket service
-- [ ] Worker files - Publishing progress to Redis
-- [ ] Component files - Replaced polling with socket events
+## Test plan
 
-## How to Run Locally
+- [ ] `npm run typecheck`
+- [ ] `npm run lint`
+- [ ] `npm run test:unit`
+- [ ] Desktop: `npm run dev` — tabs, navigate, back/forward, switch tab (if browser-related)
 
-```bash
-# Start Redis
-docker run -p 6379:6379 -d redis
+## Architecture / docs
 
-# Start server
-npm run dev:server
-
-# Start client
-npm run dev:web
-```
-
-## Test Plan
-
-- [ ] Unit tests pass
-- [ ] Integration test: Socket connection with valid JWT
-- [ ] Integration test: Worker publishes → Socket.IO forwards → Client receives
-- [ ] Reconnection test: Disconnect mid-stream → Reconnect → Resume
-- [ ] Load test: 100 concurrent socket connections
-
-## Demo
-
-<!-- Add GIF/video showing the feature working -->
-
-## Checklist
-
-- [ ] Code follows project style guidelines
-- [ ] Self-review completed
-- [ ] Comments added for complex logic
-- [ ] Documentation updated
-- [ ] No new warnings generated
-- [ ] Tests added/updated
-- [ ] All tests pass locally
-
-## Related Issues
-
-Closes #<!-- issue number -->
-
-## Reviewers
-
-- [ ] Backend reviewer assigned
-- [ ] Frontend reviewer assigned
-- [ ] QA reviewer assigned
+- [ ] No duplicate webview activation paths
+- [ ] Updated `docs/` if ports, IPC, or tab behavior changed

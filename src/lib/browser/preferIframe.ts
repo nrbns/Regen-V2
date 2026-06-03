@@ -1,5 +1,5 @@
 /**
- * When true, use sandbox iframe instead of Tauri native webview (dev / fallback).
+ * When true, force permissive sandbox iframe (env: VITE_REGEN_IFRAME_BROWSER=1).
  */
 export function preferIframeBrowser(): boolean {
   const env = import.meta.env as Record<string, string | boolean | undefined>;

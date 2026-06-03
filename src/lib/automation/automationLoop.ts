@@ -11,6 +11,7 @@ import { speakWithEmotion, voiceEmotionFromUser } from '../voice/voiceEmotion';
 import { companionDebug } from '../companion/companionDebug';
 import { getSnippetTextForTab } from '../browser/pageContextStore';
 import { fetchNativePageSnippet } from '../browser/fetchPageSnippet';
+import { shouldRunNativeWebviewCommands } from '../browser/tabWebviewSync';
 import { isTauriShell } from '../tauri/runtime';
 import { setTabEmotion, applyTabEmotionToAvatar } from '../browser/pageContextStore';
 import type { AvatarEmotion } from '../companion/companionConfig';
@@ -95,6 +96,7 @@ class AutomationLoop {
 
   private async refreshPageSnippet(tabId: string | undefined, force = false) {
     if (!tabId || !isTauriShell()) return;
+    if (!shouldRunNativeWebviewCommands()) return;
     const now = Date.now();
     if (!force && now - this.lastSnippetFetch < 8000) return;
     this.lastSnippetFetch = now;

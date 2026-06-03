@@ -32,7 +32,10 @@ export interface Download {
 
 interface DownloadsStore {
   downloads: Download[];
-  addDownload: (download: Omit<Download, 'id' | 'status' | 'progress' | 'startedAt'>) => string;
+  addDownload: (
+    download: Omit<Download, 'id' | 'status' | 'progress' | 'startedAt'>,
+    id?: string
+  ) => string;
   updateDownload: (id: string, updates: Partial<Download>) => void;
   removeDownload: (id: string) => void;
   pauseDownload: (id: string) => void;
@@ -50,21 +53,25 @@ export const useDownloadsStore = create<DownloadsStore>()(
     (set, get) => ({
       downloads: [],
 
-      addDownload: download => {
-        const id = crypto.randomUUID();
+      addDownload: (download, id) => {
+        const downloadId = id ?? crypto.randomUUID();
         const newDownload: Download = {
           ...download,
-          id,
+          id: downloadId,
           status: 'queued',
           progress: 0,
           startedAt: Date.now(),
         };
 
         set(state => ({
-          downloads: [...state.downloads, newDownload],
+          downloads: state.downloads.some((d) => d.id === downloadId)
+            ? state.downloads.map((d) =>
+                d.id === downloadId ? { ...newDownload, ...d, ...download } : d
+              )
+            : [...state.downloads, newDownload],
         }));
 
-        return id;
+        return downloadId;
       },
 
       updateDownload: (id, updates) => {

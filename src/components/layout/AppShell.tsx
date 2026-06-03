@@ -370,10 +370,13 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                             <button
                               onClick={() => handleMenuAction(item.label)}
                               className="w-full flex items-center justify-between px-4 py-1.5 text-xs text-left transition-all"
-                              style={{ color: T.textMuted }}
-                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                              style={{ background: 'transparent' }}
+                              style={{ color: T.textMuted, background: 'transparent' }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent';
+                              }}
                             >
                               <span>{item.label}</span>
                               {item.shortcut && <span className="text-white/30">{item.shortcut}</span>}

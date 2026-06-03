@@ -509,6 +509,56 @@ html {
   }
 }
 
+@keyframes regen-avatar-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes regen-avatar-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-10px) scale(1.02);
+  }
+}
+
+@keyframes regen-avatar-tilt {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-2deg);
+  }
+}
+
+@keyframes regen-avatar-nod {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes regen-avatar-lean {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
 @keyframes regen-pulse {
   0%,
   100% {
@@ -518,6 +568,18 @@ html {
   50% {
     transform: scale(1.08);
     opacity: 0.85;
+  }
+}
+
+@keyframes regen-dot-bounce {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px);
   }
 }
 
@@ -541,4 +603,9 @@ html {
 
 .regen-fade-in {
   animation: regen-fade-in 0.35s ease-out;
+}
+
+/* Tauri desktop: content pane uses shell background; native webview is a child HWND on top */
+html.regen-tauri-desktop #regen-browser-content-pane {
+  background: #0f1623;
 }

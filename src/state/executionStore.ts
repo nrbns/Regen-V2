@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { getExecutionClient, type RegenEvent } from '../services/realtime/executionClient';
+import {
+  getExecutionClient,
+  ensureExecutionWsConnected,
+  type RegenEvent,
+} from '../services/realtime/executionClient';
 import { PERF } from '../config/performance';
 
 export type Step = { id: string; label: string; status: 'pending' | 'running' | 'done' };
@@ -55,9 +59,7 @@ function handleEvent(e: RegenEvent) {
 export const useExecutionStore = create<State>((set) => {
   if (!subscribed) {
     subscribed = true;
-    const client = getExecutionClient();
-    client.connect();
-    client.on(handleEvent);
+    getExecutionClient().on(handleEvent);
   }
   return {
     connected: false,
@@ -66,7 +68,10 @@ export const useExecutionStore = create<State>((set) => {
     taskId: null,
     steps: [],
     thoughts: [],
-    run: (prompt) => getExecutionClient().execute(prompt),
+    run: (prompt) => {
+      ensureExecutionWsConnected();
+      getExecutionClient().execute(prompt);
+    },
     cancel: () => {
       const { taskId } = useExecutionStore.getState();
       if (taskId) getExecutionClient().cancel(taskId);

@@ -35,3 +35,8 @@ export function isIframeBlockedHost(url: string): boolean {
   if (IFRAME_BLOCKED.has(host)) return true;
   return [...IFRAME_BLOCKED].some((b) => host === b || host.endsWith(`.${b}`));
 }
+
+/** Google/YouTube/etc. must use Tauri native webview — iframe cannot play video. */
+export function requiresNativeBrowser(url: string): boolean {
+  return isIframeBlockedHost(url);
+}

@@ -18,9 +18,13 @@ uuid = { version = "1.0", features = ["v4"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 num_cpus = "1.16"
 chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+futures-util = "0.3"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["sysinfoapi"] }
+winapi = { version = "0.3", features = ["sysinfoapi", "winuser"] }
+webview2-com = "0.38"
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
 tauri-plugin-single-instance = { version = "2", features = [] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

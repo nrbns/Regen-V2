@@ -43,11 +43,27 @@ lerna-debug.log*
 Thumbs.db
 .DS_Store
 
-# Tauri
+# Tauri / Rust
+src-tauri/target/
 tauri-migration/src-tauri/target/
 tauri-migration/src-tauri/Cargo.lock
+**/target/
+
+# Local databases & runtime data
+regen.db
+regen.db-journal
+regen-data/
+*.mdb
+*.lock.mdb
 
 # Build artifacts
+
+# Ad-hoc AI session guides (keep docs/ only)
+PRODUCTION_FIX_GUIDE.md
+QUICK_FIX_GUIDE.md
+REGEN_*_GUIDE.md
+REGEN_*_SOLUTION.md
+TAB_SWITCHING_FIX_EXPLANATION.md
 
 # Old/Experimental Files (LAYER5 phase completed, archive old docs)
 LAYER5*.md
@@ -79,6 +95,10 @@ tools/agent/node_modules/
 # Data files
 data.ms/
 dumps/
+memory/*
+!memory/README.md
+models/*
+!models/README.md
 
 # Temporary files
 *.tmp
